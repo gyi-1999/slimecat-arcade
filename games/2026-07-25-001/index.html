@@ -1,0 +1,591 @@
+<!--GAMEMETA {"title":"喵咪一夜暴富","emoji":"🤑","genre":"放置","inspiration":"這個男人叫小帥","desc":"狂拍肉球雇貓秘書，75秒衝出天文身價"}-->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>喵咪一夜暴富</title>
+<style>
+  /* 全螢幕置中、深色背景，畫布等比縮放 */
+  html,body{margin:0;padding:0;height:100%;background:#0b0d17;overflow:hidden;
+    font-family:"PingFang TC","Microsoft JhengHei","Heiti TC",sans-serif;
+    -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;}
+  #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;}
+  canvas{touch-action:none;display:block;background:#12142a;border-radius:14px;
+    box-shadow:0 10px 40px rgba(0,0,0,.6);}
+  #lobby{position:fixed;left:10px;top:8px;z-index:10;color:#cfe9cf;
+    font-size:14px;text-decoration:none;background:rgba(0,0,0,.35);
+    padding:5px 10px;border-radius:10px;}
+  #lobby:active{background:rgba(0,0,0,.55);}
+</style>
+</head>
+<body>
+<a id="lobby" href="../../index.html">← 回遊戲區</a>
+<div id="wrap"><canvas id="c" width="400" height="600"></canvas></div>
+<script>
+"use strict";
+(function(){
+  const canvas=document.getElementById('c');
+  const ctx=canvas.getContext('2d');
+  const LW=400, LH=600, DURATION=75;
+  let scale=1, dpr=1;
+
+  // ── 高解析度縮放：實體緩衝 = 顯示尺寸 × dpr（cap 3），邏輯座標維持 400×600 ──
+  function resize(){
+    dpr=Math.min(window.devicePixelRatio||1,3);
+    const s=Math.min(window.innerWidth/LW, window.innerHeight/LH);
+    scale=s;
+    canvas.style.width=(LW*s)+'px';
+    canvas.style.height=(LH*s)+'px';
+    canvas.width=Math.max(1,Math.round(LW*s*dpr));
+    canvas.height=Math.max(1,Math.round(LH*s*dpr));
+    ctx.setTransform(s*dpr,0,0,s*dpr,0,0);
+  }
+  window.addEventListener('resize',resize);
+  resize();
+
+  // ── WebAudio 合成音效（禁外部音檔）──
+  let actx=null;
+  function ac(){
+    if(!actx){ try{ actx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ actx=null; } }
+    if(actx && actx.state==='suspended'){ actx.resume().catch(function(){}); }
+    return actx;
+  }
+  function tone(f,dur,type,vol,slide){
+    const a=ac(); if(!a) return;
+    try{
+      const o=a.createOscillator(), g=a.createGain();
+      o.type=type||'sine'; o.frequency.value=f;
+      if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(1,f*slide), a.currentTime+dur);
+      g.gain.value=0.0001;
+      g.gain.exponentialRampToValueAtTime(vol||0.15, a.currentTime+0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime+dur);
+      o.connect(g); g.connect(a.destination);
+      o.start(); o.stop(a.currentTime+dur+0.03);
+    }catch(e){}
+  }
+  function sClick(c){ tone(300+Math.min(c,40)*10, 0.07, 'square', 0.10, 1.5); }
+  function sBuy(){ tone(523,0.12,'triangle',0.18); tone(660,0.14,'triangle',0.12); }
+  function sDeny(){ tone(150,0.09,'sawtooth',0.08,0.7); }
+  function sGold(){ [660,880,1100,1320].forEach(function(f,i){ setTimeout(function(){ tone(f,0.12,'sine',0.16); }, i*45); }); }
+  function sTier(){ [440,554,659,880].forEach(function(f,i){ setTimeout(function(){ tone(f,0.16,'sine',0.15); }, i*70); }); }
+  function sRec(){ [523,659,784,1046,1318].forEach(function(f,i){ setTimeout(function(){ tone(f,0.22,'triangle',0.2); }, i*110); }); }
+
+  // ── 數字格式（天文數字用縮寫）──
+  const UNITS=['','K','M','B','T','Qa','Qi','Sx'];
+  function fmt(n){
+    n=Math.floor(n);
+    if(n<1000) return ''+n;
+    let i=0;
+    while(n>=1000 && i<UNITS.length-1){ n/=1000; i++; }
+    let s = n<10 ? n.toFixed(2) : (n<100 ? n.toFixed(1) : ''+Math.floor(n));
+    return s+UNITS[i];
+  }
+
+  // ── localStorage 最高身價 ──
+  const KEY='slimecat_rich_best';
+  let best=0;
+  try{ best=parseFloat(localStorage.getItem(KEY))||0; }catch(e){ best=0; }
+
+  // ── 升級項目（前兩項便宜、後兩項質變）──
+  const ups=[
+    {name:'肉球強化', desc:'每拍魚乾 +', base:12,   mult:1.15, lvl:0, kind:'click', gain:2},
+    {name:'貓秘書',   desc:'自動拍打 +',base:35,   mult:1.15, lvl:0, kind:'auto',  gain:3},
+    {name:'魚乾工廠', desc:'量產 /秒 +',base:480,  mult:1.16, lvl:0, kind:'auto',  gain:32},
+    {name:'喵星產業', desc:'宇宙級 /秒 +',base:7200,mult:1.17, lvl:0, kind:'auto',  gain:280},
+  ];
+  function cost(u){ return Math.floor(u.base*Math.pow(u.mult,u.lvl)); }
+
+  // ── 產業階級（換背景＋慶祝）──
+  const TIERS=[
+    {th:0,       name:'路邊肉球', c1:'#1a2233', c2:'#0d1120'},
+    {th:600,     name:'喵喵小舖', c1:'#2a2140', c2:'#140f24'},
+    {th:25000,   name:'魚乾帝國', c1:'#123a3a', c2:'#08211f'},
+    {th:1500000, name:'喵星宇宙', c1:'#2b1440', c2:'#120725'},
+  ];
+
+  // ── 遊戲狀態 ──
+  let state='title';           // title / playing / over
+  let money=0, lifetime=0;     // money 可花、lifetime 為身價(分數)
+  let clickPower=1, rate=0;
+  let timeLeft=DURATION;
+  let comboCount=0, comboTimer=0;
+  let feverTime=0;
+  let squash=0, pressed=false;
+  let tier=0;
+  let shake=0;
+  let bannerText='', bannerTime=0;
+  let particles=[];
+  let gold=null, goldTimer=9;
+  let flashBtn=-1, flashTime=0;
+  let overIsRecord=false, overDiff=0;
+  let tHint=0;
+
+  function recompute(){
+    clickPower=1; rate=0;
+    for(const u of ups){ if(u.kind==='click') clickPower+=u.lvl*u.gain; else rate+=u.lvl*u.gain; }
+  }
+  function comboMult(){ return 1+Math.min(comboCount,40)*0.075; }   // 最高 ×4
+  function feverMult(){ return feverTime>0?3:1; }
+
+  function reset(){
+    money=0; lifetime=0; clickPower=1; rate=0; timeLeft=DURATION;
+    comboCount=0; comboTimer=0; feverTime=0; squash=0; pressed=false;
+    tier=0; shake=0; bannerText=''; bannerTime=0; particles=[];
+    gold=null; goldTimer=9; flashBtn=-1; flashTime=0; tHint=5;
+    for(const u of ups) u.lvl=0;
+    recompute();
+  }
+
+  function startGame(){ reset(); state='playing'; }
+
+  function gameOver(){
+    state='over';
+    overIsRecord=false; overDiff=0;
+    if(lifetime>best){ best=lifetime; overIsRecord=true;
+      try{ localStorage.setItem(KEY, Math.floor(best)); }catch(e){}
+      sRec();
+    } else { overDiff=best-lifetime; }
+    if(window.SC){ try{ SC.over(Math.floor(lifetime)); }catch(e){} }
+  }
+
+  // ── 粒子 ──
+  function burst(x,y,col,n){
+    for(let i=0;i<n;i++){
+      const a=Math.random()*Math.PI*2, sp=1+Math.random()*4;
+      particles.push({x:x,y:y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-1,
+        life:0.5+Math.random()*0.4,max:0.9,col:col,r:2+Math.random()*3,txt:null});
+    }
+    if(particles.length>260) particles.splice(0,particles.length-260);
+  }
+  function floatText(x,y,txt,col){
+    particles.push({x:x,y:y,vx:(Math.random()-0.5)*0.6,vy:-2.2,life:0.9,max:0.9,col:col,r:0,txt:txt});
+  }
+
+  function checkTier(){
+    let nt=0;
+    for(let i=0;i<TIERS.length;i++){ if(lifetime>=TIERS[i].th) nt=i; }
+    if(nt>tier){
+      tier=nt;
+      bannerText='解鎖：'+TIERS[tier].name+'！';
+      bannerTime=2.2; shake=Math.max(shake,10);
+      burst(200,245,'#ffd75e',34); sTier();
+    }
+  }
+
+  // ── 拍肉球 ──
+  function doClick(){
+    const gain=clickPower*comboMult()*feverMult();
+    money+=gain; lifetime+=gain;
+    comboCount++; comboTimer=1.25;
+    squash=1; pressed=true;
+    floatText(200,175,'+'+fmt(gain), feverTime>0?'#ffd75e':'#eafff0');
+    burst(200,245,'#7ee08a',5);
+    sClick(comboCount);
+    tHint=0;
+    checkTier();
+  }
+
+  function buy(i){
+    const u=ups[i], c=cost(u);
+    if(money>=c){
+      money-=c; u.lvl++; recompute();
+      sBuy(); flashBtn=i; flashTime=0.25;
+      burst(200,420+i*48,'#8ad0ff',10);
+    } else { sDeny(); flashBtn=i; flashTime=0.18; }
+  }
+
+  function spawnGold(){
+    const edge=Math.random()<0.5?-1:1;
+    gold={ x:200+edge*-140, y:150+Math.random()*140,
+      vx:edge*(70+Math.random()*40), vy:(Math.random()-0.5)*30,
+      life:3.3, blink:0 };
+  }
+  function tapGold(){
+    // 暴富狂熱：5 秒全體 ×3，並灌一筆爆量身價
+    feverTime=5;
+    const boost=Math.max(rate*3, clickPower*40, 60);
+    money+=boost; lifetime+=boost;
+    floatText(gold.x,gold.y,'暴富狂熱!','#ffd75e');
+    burst(gold.x,gold.y,'#ffd75e',40);
+    shake=Math.max(shake,14); sGold();
+    gold=null; checkTier();
+  }
+
+  // ── 更新（固定時間步長）──
+  function update(dt){
+    if(state!=='playing') { updateParticles(dt); if(shake>0)shake=Math.max(0,shake-dt*30); return; }
+
+    if(comboTimer>0){ comboTimer-=dt; if(comboTimer<=0) comboCount=0; }
+    if(feverTime>0) feverTime-=dt;
+    if(squash>0) squash=Math.max(0,squash-dt*4.5);
+    if(shake>0) shake=Math.max(0,shake-dt*30);
+    if(bannerTime>0) bannerTime-=dt;
+    if(flashTime>0) flashTime-=dt;
+    if(tHint>0) tHint-=dt;
+
+    // 自動產出（受 fever 加成）
+    if(rate>0){ const g=rate*feverMult()*dt; money+=g; lifetime+=g; checkTier(); }
+
+    // 黃金肉球（12 秒後開始出現，越後面越頻繁＝後期增壓）
+    const elapsed=DURATION-timeLeft;
+    if(gold){
+      gold.x+=gold.vx*dt; gold.y+=gold.vy*dt;
+      if(gold.y<120||gold.y>320) gold.vy*=-1;
+      gold.life-=dt; gold.blink+=dt;
+      if(gold.life<=0 || gold.x<-60 || gold.x>460) gold=null;
+    } else if(elapsed>12){
+      goldTimer-=dt;
+      if(goldTimer<=0){ spawnGold(); goldTimer=Math.max(3.5, 9-elapsed*0.08); }
+    }
+
+    updateParticles(dt);
+
+    timeLeft-=dt;
+    if(timeLeft<=0){ timeLeft=0; gameOver(); }
+  }
+  function updateParticles(dt){
+    for(let i=particles.length-1;i>=0;i--){
+      const p=particles[i];
+      p.x+=p.vx; p.y+=p.vy; p.vy+=p.txt?0.03:0.18; p.vx*=0.98;
+      p.life-=dt;
+      if(p.life<=0) particles.splice(i,1);
+    }
+  }
+
+  // ── 繪圖工具 ──
+  function rr(x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+  function bg(){
+    const t=TIERS[tier];
+    let c1=t.c1,c2=t.c2;
+    if(feverTime>0){ // 狂熱期畫面泛金脈動
+      const p=0.5+0.5*Math.sin(performance.now()/90);
+      c1='#3a2a10'; c2='#1a1205'; ctx.fillStyle='#0d1120';
+    }
+    const g=ctx.createLinearGradient(0,0,0,LH);
+    g.addColorStop(0,c1); g.addColorStop(1,c2);
+    ctx.fillStyle=g; ctx.fillRect(0,0,LW,LH);
+    if(tier>=3){ // 宇宙階級加星星
+      ctx.fillStyle='rgba(255,255,255,.7)';
+      for(let i=0;i<28;i++){
+        const x=(i*137)%400, y=(i*79)%380+40;
+        const tw=0.4+0.6*Math.abs(Math.sin(performance.now()/500+i));
+        ctx.globalAlpha=tw; ctx.fillRect(x,y,2,2);
+      }
+      ctx.globalAlpha=1;
+    }
+    if(feverTime>0){
+      ctx.fillStyle='rgba(255,200,60,'+(0.10+0.06*Math.sin(performance.now()/80))+')';
+      ctx.fillRect(0,0,LW,LH);
+    }
+  }
+
+  // 史萊姆貓（綠史萊姆＋貓耳＋粉肉球）
+  function drawCat(cx,cy,r,sq){
+    ctx.save();
+    ctx.translate(cx,cy);
+    ctx.scale(1+sq*0.22, 1-sq*0.22);
+    // 光暈
+    ctx.fillStyle='rgba(126,224,138,.18)';
+    ctx.beginPath(); ctx.arc(0,0,r*1.22,0,Math.PI*2); ctx.fill();
+    // 耳朵
+    ctx.fillStyle='#57b866';
+    for(const s of [-1,1]){
+      ctx.beginPath();
+      ctx.moveTo(s*r*0.55,-r*0.7);
+      ctx.lineTo(s*r*0.9,-r*1.18);
+      ctx.lineTo(s*r*0.98,-r*0.55);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle='#ffb3c6';
+    for(const s of [-1,1]){
+      ctx.beginPath();
+      ctx.moveTo(s*r*0.62,-r*0.72);
+      ctx.lineTo(s*r*0.85,-r*1.02);
+      ctx.lineTo(s*r*0.9,-r*0.62);
+      ctx.closePath(); ctx.fill();
+    }
+    // 身體（史萊姆綠）
+    const bg2=ctx.createRadialGradient(-r*0.3,-r*0.3,r*0.2,0,0,r);
+    bg2.addColorStop(0,'#8be89a'); bg2.addColorStop(1,'#5cc069');
+    ctx.fillStyle=bg2;
+    ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.fill();
+    // 高光
+    ctx.fillStyle='rgba(255,255,255,.35)';
+    ctx.beginPath(); ctx.ellipse(-r*0.32,-r*0.35,r*0.22,r*0.14,-0.5,0,Math.PI*2); ctx.fill();
+    // 眼睛
+    ctx.fillStyle='#20351f';
+    for(const s of [-1,1]){
+      ctx.beginPath(); ctx.arc(s*r*0.34,-r*0.06,r*0.11,0,Math.PI*2); ctx.fill();
+    }
+    ctx.fillStyle='#fff';
+    for(const s of [-1,1]){
+      ctx.beginPath(); ctx.arc(s*r*0.30,-r*0.11,r*0.04,0,Math.PI*2); ctx.fill();
+    }
+    // 腮紅
+    ctx.fillStyle='rgba(255,140,170,.5)';
+    for(const s of [-1,1]){
+      ctx.beginPath(); ctx.arc(s*r*0.5,r*0.12,r*0.09,0,Math.PI*2); ctx.fill();
+    }
+    // 嘴 :3
+    ctx.strokeStyle='#20351f'; ctx.lineWidth=r*0.05; ctx.lineCap='round';
+    ctx.beginPath();
+    ctx.moveTo(-r*0.12,r*0.14); ctx.quadraticCurveTo(0,r*0.24,0,r*0.14);
+    ctx.quadraticCurveTo(0,r*0.24,r*0.12,r*0.14); ctx.stroke();
+    // 粉肉球（拍打目標）
+    ctx.fillStyle='#ff9dbb';
+    ctx.beginPath(); ctx.ellipse(0,r*0.5,r*0.26,r*0.2,0,0,Math.PI*2); ctx.fill();
+    for(const s of [-1,0,1]){
+      ctx.beginPath(); ctx.ellipse(s*r*0.16,r*0.34,r*0.07,r*0.06,0,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawGold(){
+    if(!gold) return;
+    const blink=gold.life<1 ? (Math.sin(gold.blink*20)>0?0.35:1) : 1;
+    ctx.save(); ctx.globalAlpha=blink;
+    ctx.translate(gold.x,gold.y);
+    const pul=1+0.12*Math.sin(performance.now()/90);
+    ctx.scale(pul,pul);
+    ctx.fillStyle='rgba(255,215,90,.35)';
+    ctx.beginPath(); ctx.arc(0,0,40,0,Math.PI*2); ctx.fill();
+    const gg=ctx.createRadialGradient(-8,-8,4,0,0,30);
+    gg.addColorStop(0,'#fff3b0'); gg.addColorStop(1,'#f0a91e');
+    ctx.fillStyle=gg;
+    ctx.beginPath(); ctx.arc(0,0,28,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#7a4a00'; ctx.font='bold 22px sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('🐾',0,1);
+    ctx.restore();
+    ctx.globalAlpha=1;
+  }
+
+  function drawParticles(){
+    for(const p of particles){
+      const a=Math.max(0,p.life/p.max);
+      if(p.txt){
+        ctx.globalAlpha=a; ctx.fillStyle=p.col;
+        ctx.font='bold 20px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(p.txt,p.x,p.y);
+      } else {
+        ctx.globalAlpha=a; ctx.fillStyle=p.col;
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+      }
+    }
+    ctx.globalAlpha=1;
+  }
+
+  function txt(s,x,y,size,col,align,bold){
+    ctx.fillStyle=col; ctx.textAlign=align||'center'; ctx.textBaseline='middle';
+    ctx.font=(bold?'bold ':'')+size+'px "PingFang TC","Microsoft JhengHei",sans-serif';
+    ctx.fillText(s,x,y);
+  }
+
+  // ── HUD 與按鈕 ──
+  function drawHUD(){
+    // 計時條（最後 10 秒轉紅閃爍＝壓力）
+    const frac=timeLeft/DURATION;
+    ctx.fillStyle='rgba(0,0,0,.35)'; ctx.fillRect(0,0,LW,10);
+    let bc = timeLeft<=10 ? (Math.sin(performance.now()/100)>0?'#ff5a5a':'#ff9b9b') : '#7ee08a';
+    ctx.fillStyle=bc; ctx.fillRect(0,0,LW*frac,10);
+
+    txt('身價（魚乾）',200,30,13,'rgba(255,255,255,.6)','center');
+    txt(fmt(lifetime),200,58,40,'#ffe98a','center',true);
+    txt(fmt(rate)+' /秒'+(feverTime>0?'  🔥×3':''),200,90,17,feverTime>0?'#ffd75e':'#9fe0ff','center',true);
+    txt('可花魚乾：'+fmt(money),200,113,14,'rgba(255,255,255,.75)','center');
+    // 倒數秒數
+    txt('⏱ '+Math.ceil(timeLeft)+'s',360,30,16, timeLeft<=10?'#ff8a8a':'#cfe9cf','center',true);
+  }
+
+  function drawCombo(){
+    if(comboCount>2){
+      const m=comboMult();
+      const sz=18+Math.min(comboCount,40)*0.4;
+      txt('連拍 '+comboCount+'　×'+m.toFixed(1),200,366,sz,'#ffd75e','center',true);
+    } else if(tHint>0 && state==='playing'){
+      const p=0.5+0.5*Math.sin(performance.now()/180);
+      ctx.globalAlpha=0.6+0.4*p;
+      txt('👇 快拍肉球！',200,366,20,'#eafff0','center',true);
+      ctx.globalAlpha=1;
+    }
+  }
+
+  function drawButtons(){
+    for(let i=0;i<ups.length;i++){
+      const u=ups[i], c=cost(u), y=400+i*48, afford=money>=c;
+      const flashing=(flashBtn===i&&flashTime>0);
+      ctx.save();
+      if(flashing && !afford){ ctx.translate((Math.random()-0.5)*4,0); }
+      rr(12,y,376,44,12);
+      ctx.fillStyle= afford ? (flashing?'#3d8b4f':'#2f6b3d') : '#242a3a';
+      ctx.fill();
+      rr(12,y,376,44,12);
+      ctx.lineWidth=2; ctx.strokeStyle= afford?'#7ee08a':'#39405a'; ctx.stroke();
+      // 左：名稱＋效果
+      ctx.textBaseline='middle';
+      txt(u.name+'  Lv.'+u.lvl,24,y+15,17, afford?'#eafff0':'#8b93ab','left',true);
+      txt(u.desc+u.gain,24,y+33,13, afford?'#bfe9c6':'#727a94','left');
+      // 右：價格
+      txt('🐟 '+fmt(c),376,y+22,17, afford?'#ffe98a':'#727a94','right',true);
+      ctx.restore();
+    }
+  }
+
+  function drawBanner(){
+    if(bannerTime>0){
+      const a=Math.min(1,bannerTime);
+      ctx.globalAlpha=a;
+      rr(40,250,320,52,14); ctx.fillStyle='rgba(255,215,90,.92)'; ctx.fill();
+      txt(bannerText,200,276,22,'#5a3a00','center',true);
+      ctx.globalAlpha=1;
+    }
+  }
+
+  // ── 各狀態畫面 ──
+  function renderTitle(){
+    bg();
+    drawCat(200,215,74,0.05*Math.sin(performance.now()/400)+0.05);
+    txt('喵咪一夜暴富',200,340,38,'#ffe98a','center',true);
+    txt('🤑 史萊姆貓的極速致富挑戰',200,372,16,'#cfe9cf','center');
+    // 規則框
+    rr(30,398,340,132,14); ctx.fillStyle='rgba(0,0,0,.32)'; ctx.fill();
+    txt('狂拍肉球賺魚乾，花魚乾雇貓秘書自動生財，',200,420,15,'#eafff0','center');
+    txt('75 秒內把身價衝到天文數字！',200,442,15,'#eafff0','center');
+    txt('📱 點肉球＝拍打　點下方按鈕＝升級',200,470,14,'#9fe0ff','center');
+    txt('⌨ 空白鍵／Enter 也能拍　🐾 抓黃金肉球爆狂熱',200,492,14,'#9fe0ff','center');
+    txt('連續快拍累積連段倍率，別讓它斷！',200,514,14,'#ffd75e','center');
+    if(best>0) txt('目前最高身價：'+fmt(best),200,552,16,'#ffd75e','center',true);
+    const p=0.5+0.5*Math.sin(performance.now()/300);
+    ctx.globalAlpha=0.6+0.4*p;
+    txt('▶ 點擊畫面開始',200,580,20,'#7ee08a','center',true);
+    ctx.globalAlpha=1;
+  }
+
+  function renderPlay(){
+    bg();
+    drawHUD();
+    drawCat(200,215, pressed?86:88, squash);
+    pressed=false;
+    drawGold();
+    drawParticles();
+    drawCombo();
+    drawButtons();
+    drawBanner();
+  }
+
+  function renderOver(){
+    bg();
+    drawParticles();
+    txt('時間到！',200,120,34,'#fff','center',true);
+    txt('🤑 最終身價',200,175,17,'#cfe9cf','center');
+    txt(fmt(lifetime),200,220,46,'#ffe98a','center',true);
+
+    rr(40,270,320,120,14); ctx.fillStyle='rgba(0,0,0,.32)'; ctx.fill();
+    if(overIsRecord){
+      const p=0.5+0.5*Math.sin(performance.now()/200);
+      ctx.globalAlpha=0.7+0.3*p;
+      txt('🎉 新紀錄！你是暴富喵！',200,312,22,'#ffd75e','center',true);
+      ctx.globalAlpha=1;
+      txt('打破了自己的身價天花板',200,352,15,'#eafff0','center');
+    } else {
+      txt('差 '+fmt(overDiff)+' 就破紀錄！',200,308,22,'#ff9b9b','center',true);
+      txt('最高紀錄：'+fmt(best),200,346,16,'#cfe9cf','center');
+      txt('再拍快一點就贏了喵～',200,370,14,'#ffd75e','center');
+    }
+
+    const p2=0.5+0.5*Math.sin(performance.now()/300);
+    ctx.globalAlpha=0.6+0.4*p2;
+    txt('🔁 點一下，再暴富一次',200,470,22,'#7ee08a','center',true);
+    ctx.globalAlpha=1;
+    txt('（空白鍵／Enter 也可以）',200,505,14,'rgba(255,255,255,.6)','center');
+  }
+
+  function render(){
+    ctx.save();
+    if(shake>0) ctx.translate((Math.random()-0.5)*shake,(Math.random()-0.5)*shake);
+    if(state==='title') renderTitle();
+    else if(state==='playing') renderPlay();
+    else renderOver();
+    ctx.restore();
+  }
+
+  // ── 主迴圈（固定時間步長 accumulator，不受 60/120Hz 影響）──
+  let last=performance.now(), acc=0; const STEP=1/60;
+  function frame(now){
+    let dt=(now-last)/1000; last=now;
+    if(dt>0.25) dt=0.25;   // 防切分頁後爆衝
+    acc+=dt;
+    let guard=0;
+    while(acc>=STEP && guard<8){ update(STEP); acc-=STEP; guard++; }
+    if(guard>=8) acc=0;
+    render();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // ── 輸入：座標一律用 getBoundingClientRect 換算回邏輯 400×600 ──
+  function toLogical(e){
+    const rect=canvas.getBoundingClientRect();
+    return {
+      x:(e.clientX-rect.left)/rect.width*LW,
+      y:(e.clientY-rect.top)/rect.height*LH
+    };
+  }
+  function inRect(px,py,x,y,w,h){ return px>=x&&px<=x+w&&py>=y&&py<=y+h; }
+
+  function handleDown(px,py){
+    ac(); // 首次手勢喚醒音訊
+    if(state==='title'){ startGame(); return; }
+    if(state==='over'){ startGame(); return; }
+    // playing
+    if(gold){
+      const dx=px-gold.x, dy=py-gold.y;
+      if(dx*dx+dy*dy<=44*44){ tapGold(); return; }
+    }
+    // 升級按鈕
+    for(let i=0;i<ups.length;i++){
+      if(inRect(px,py,12,400+i*48,376,44)){ buy(i); return; }
+    }
+    // 肉球（中央大範圍）
+    const dx=px-200, dy=py-215;
+    if(dx*dx+dy*dy<=110*110){ doClick(); return; }
+  }
+
+  canvas.addEventListener('pointerdown',function(e){
+    e.preventDefault();
+    const p=toLogical(e);
+    handleDown(p.x,p.y);
+  },{passive:false});
+
+  // 清掉輸入狀態，防卡鍵/自走
+  function clearInput(){ pressed=false; }
+  canvas.addEventListener('pointerup',clearInput);
+  canvas.addEventListener('pointercancel',clearInput);
+  window.addEventListener('blur',clearInput);
+
+  window.addEventListener('keydown',function(e){
+    if(e.code==='Space'||e.code==='Enter'){
+      e.preventDefault();
+      ac();
+      if(state==='title'||state==='over') startGame();
+      else doClick();
+    }
+  });
+
+  // 阻止長按選單
+  window.addEventListener('contextmenu',function(e){ e.preventDefault(); });
+})();
+</script>
+<script src="../../sc_config.js"></script>
+<script src="../../stats.js"></script>
+</body>
+</html>
