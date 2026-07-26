@@ -1,0 +1,1064 @@
+<!--GAMEMETA {"title":"喵色記憶王","emoji":"🎨","genre":"益智（記憶反應）","inspiration":"Toon Tone","desc":"記住每隻史萊姆貓的配色，牠褪色時從近似色中挑回正解"}-->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>喵色記憶王</title>
+<style>
+  /* ===== 版面：置中直式畫布、深色宇宙底 ===== */
+  html,body{margin:0;padding:0;height:100%;background:#0b0819;overflow:hidden;
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei","Heiti TC",sans-serif;
+    -webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;}
+  #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;}
+  canvas{display:block;touch-action:none;border-radius:14px;
+    box-shadow:0 0 42px rgba(120,90,255,.28),0 0 2px rgba(255,255,255,.18);}
+  /* 回大廳連結 */
+  #back{position:fixed;left:10px;top:8px;z-index:9;color:#cbbcff;text-decoration:none;
+    font-size:13px;background:rgba(20,14,45,.72);padding:5px 11px;border-radius:999px;
+    border:1px solid rgba(160,130,255,.35);}
+  #back:active{background:rgba(60,40,110,.9);}
+</style>
+</head>
+<body>
+<a id="back" href="../../index.html">← 回遊戲區</a>
+<div id="wrap"><canvas id="game" width="400" height="600"></canvas></div>
+<script>
+(function(){
+'use strict';
+
+/* ======================= 基礎設定 ======================= */
+var W=400,H=600;
+var cv=document.getElementById('game');
+var ctx=cv.getContext('2d');
+var scale=1,dpr=1;
+
+/* 依視窗等比縮放，並用 DPR 放大實體緩衝維持高解析度 */
+function resize(){
+  var vw=window.innerWidth, vh=window.innerHeight;
+  scale=Math.min(vw/W,(vh-6)/H);
+  if(!(scale>0)) scale=1;
+  dpr=Math.min(window.devicePixelRatio||1,3);
+  cv.style.width=(W*scale)+'px';
+  cv.style.height=(H*scale)+'px';
+  cv.width=Math.round(W*scale*dpr);
+  cv.height=Math.round(H*scale*dpr);
+  ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);   /* 邏輯座標維持 400x600 */
+  ctx.textBaseline='alphabetic';
+}
+window.addEventListener('resize',resize);
+window.addEventListener('orientationchange',function(){setTimeout(resize,120);});
+resize();
+
+/* ======================= 小工具 ======================= */
+function clamp(v,a,b){return v<a?a:(v>b?b:v);}
+function rnd(a,b){return a+Math.random()*(b-a);}
+function irnd(a,b){return Math.floor(rnd(a,b+1));}
+function pick(arr){return arr[Math.floor(Math.random()*arr.length)];}
+function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function lerp(a,b,t){return a+(b-a)*t;}
+function easeOut(t){return 1-Math.pow(1-t,3);}
+function hueDist(a,b){var d=Math.abs(((a-b)%360+360)%360);return d>180?360-d:d;}
+function rrect(x,y,w,h,r){
+  r=Math.min(r,w/2,h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r);
+  ctx.closePath();
+}
+function txt(s,x,y,size,color,align,weight){
+  ctx.font=(weight||'700')+' '+size+'px "Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
+  ctx.textAlign=align||'center';
+  ctx.fillStyle=color;
+  ctx.fillText(s,x,y);
+}
+/* HSL → RGB（用來算兩色的實際差距百分比） */
+function hsl2rgb(h,s,l){
+  h=((h%360)+360)%360; s=s/100; l=l/100;
+  var c=(1-Math.abs(2*l-1))*s, x=c*(1-Math.abs((h/60)%2-1)), m=l-c/2, r=0,g=0,b=0;
+  if(h<60){r=c;g=x;} else if(h<120){r=x;g=c;} else if(h<180){g=c;b=x;}
+  else if(h<240){g=x;b=c;} else if(h<300){r=x;b=c;} else {r=c;b=x;}
+  return [(r+m)*255,(g+m)*255,(b+m)*255];
+}
+function colDiffPct(a,b){
+  var A=hsl2rgb(a.h,a.s,a.l),B=hsl2rgb(b.h,b.s,b.l);
+  var d=Math.sqrt(Math.pow(A[0]-B[0],2)+Math.pow(A[1]-B[1],2)+Math.pow(A[2]-B[2],2));
+  return d/441.673*100;
+}
+function cssOf(c,dl,ds){
+  return 'hsl('+(((c.h%360)+360)%360).toFixed(1)+','+clamp(c.s+(ds||0),0,100).toFixed(1)+'%,'+clamp(c.l+(dl||0),0,100).toFixed(1)+'%)';
+}
+/* 灰↔真色的調色盤（mix=0 全灰、1 全彩） */
+function palOf(c,mix){
+  var s=c.s*mix, l=64+(c.l-64)*mix;
+  return {
+    main:'hsl('+c.h.toFixed(1)+','+s.toFixed(1)+'%,'+l.toFixed(1)+'%)',
+    dark:'hsl('+c.h.toFixed(1)+','+(s*0.92).toFixed(1)+'%,'+clamp(l-21,8,100).toFixed(1)+'%)',
+    light:'hsl('+c.h.toFixed(1)+','+(s*0.62).toFixed(1)+'%,'+clamp(l+21,0,97).toFixed(1)+'%)'
+  };
+}
+
+/* ======================= 存檔 ======================= */
+function lsGet(k,d){try{var v=localStorage.getItem(k);return v===null?d:v;}catch(e){return d;}}
+function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+var BEST=parseInt(lsGet('mcmk_best','0'),10)||0;
+var BEST_STREAK=parseInt(lsGet('mcmk_streak','0'),10)||0;
+var DEXBOOK={};
+(function(){ try{ var raw=lsGet('mcmk_dex',''); if(raw) raw.split('|').forEach(function(n){if(n)DEXBOOK[n]=1;}); }catch(e){} })();
+function saveDex(){ var a=[]; for(var k in DEXBOOK) a.push(k); lsSet('mcmk_dex',a.join('|')); }
+function dexCount(){var n=0;for(var k in DEXBOOK)n++;return n;}
+
+/* 每日目標：回訪鉤子（每天一個門檻＋連續達標天數） */
+function dayKey(d){ d=d||new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+function yesterKey(){ return dayKey(new Date(Date.now()-86400000)); }
+function hashStr(s){var h=2166136261;for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=(h*16777619)>>>0;}return h>>>0;}
+var TODAY=dayKey();
+var DAILY_TARGET=1200+(hashStr('mcmk'+TODAY)%17)*200;   /* 1200 ~ 4400 */
+var DAILY={last:lsGet('mcmk_dlast',''),streak:parseInt(lsGet('mcmk_dstreak','0'),10)||0};
+function markDaily(score){
+  if(score>=DAILY_TARGET && DAILY.last!==TODAY){
+    DAILY.streak=(DAILY.last===yesterKey())?DAILY.streak+1:1;
+    DAILY.last=TODAY;
+    lsSet('mcmk_dlast',DAILY.last); lsSet('mcmk_dstreak',String(DAILY.streak));
+    return true;
+  }
+  return false;
+}
+
+/* ======================= 音效（WebAudio 合成） ======================= */
+var actx=null;
+function audio(){
+  if(actx===null){
+    try{ var AC=window.AudioContext||window.webkitAudioContext; actx=AC?new AC():false; }
+    catch(e){ actx=false; }
+  }
+  if(actx && actx.state==='suspended'){ try{actx.resume();}catch(e){} }
+  return actx||null;
+}
+function tone(freq,dur,type,vol,delay,slideTo){
+  var a=audio(); if(!a) return;
+  try{
+    var t0=a.currentTime+(delay||0);
+    var o=a.createOscillator(),g=a.createGain();
+    o.type=type||'sine';
+    o.frequency.setValueAtTime(Math.max(30,freq),t0);
+    if(slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(30,slideTo),t0+dur);
+    g.gain.setValueAtTime(0.0001,t0);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002,vol||0.14),t0+0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+    o.connect(g); g.connect(a.destination);
+    o.start(t0); o.stop(t0+dur+0.06);
+  }catch(e){}
+}
+function noiseBurst(dur,vol,freq){
+  var a=audio(); if(!a) return;
+  try{
+    var n=Math.floor(a.sampleRate*dur);
+    var buf=a.createBuffer(1,n,a.sampleRate), d=buf.getChannelData(0);
+    for(var i=0;i<n;i++) d[i]=(Math.random()*2-1)*(1-i/n);
+    var src=a.createBufferSource(); src.buffer=buf;
+    var f=a.createBiquadFilter(); f.type='lowpass'; f.frequency.value=freq||900;
+    var g=a.createGain(); g.gain.setValueAtTime(vol||0.14,a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+dur);
+    src.connect(f); f.connect(g); g.connect(a.destination);
+    src.start();
+  }catch(e){}
+}
+function sfxClick(){ tone(560,0.06,'triangle',0.1,0,760); }
+function sfxCorrect(combo){
+  var base=470+Math.min(combo,14)*34;
+  tone(base,0.09,'triangle',0.15,0);
+  tone(base*1.26,0.10,'triangle',0.13,0.06);
+  tone(base*1.55,0.16,'sine',0.12,0.12);
+}
+function sfxWrong(){
+  noiseBurst(0.20,0.16,700);
+  tone(210,0.30,'sawtooth',0.11,0,88);
+}
+function sfxLearn(){
+  tone(520,0.11,'sine',0.13,0);
+  tone(700,0.12,'sine',0.13,0.09);
+  tone(920,0.22,'sine',0.12,0.18);
+}
+function sfxRepaint(){
+  tone(300,0.26,'square',0.09,0,760);
+  noiseBurst(0.16,0.10,1500);
+}
+function sfxRecord(){
+  [523,659,784,1046,1318].forEach(function(f,i){ tone(f,0.24,'triangle',0.14,i*0.075); });
+}
+function sfxTick(){ tone(1250,0.04,'square',0.055,0); }
+function sfxOver(){
+  [520,430,330,235].forEach(function(f,i){ tone(f,0.30,'sine',0.13,i*0.13); });
+}
+
+/* ======================= 角色資料（史萊姆貓宇宙） ======================= */
+/* 每隻貓靠「外型特徵」辨識，顏色每局重新隨機 → 每局都要重新記憶 */
+var CAT_POOL=[
+ {name:'呆毛喵', ear:'pointy', eye:'round',  pat:'none',   acc:'ahoge'},
+ {name:'條紋喵', ear:'pointy', eye:'round',  pat:'stripe', acc:'none'},
+ {name:'斑斑喵', ear:'round',  eye:'round',  pat:'spot',   acc:'none'},
+ {name:'鈴鐺喵', ear:'pointy', eye:'sleepy', pat:'none',   acc:'bell'},
+ {name:'蝴蝶喵', ear:'round',  eye:'round',  pat:'belly',  acc:'bow'},
+ {name:'摺耳喵', ear:'fold',   eye:'round',  pat:'none',   acc:'none'},
+ {name:'星星喵', ear:'pointy', eye:'star',   pat:'none',   acc:'none'},
+ {name:'小角喵', ear:'fold',   eye:'round',  pat:'spot',   acc:'horn'},
+ {name:'泡泡喵', ear:'round',  eye:'sleepy', pat:'none',   acc:'bubble'},
+ {name:'皇冠喵', ear:'pointy', eye:'round',  pat:'belly',  acc:'crown'},
+ {name:'葉子喵', ear:'round',  eye:'wink',   pat:'stripe', acc:'leaf'},
+ {name:'瞇瞇喵', ear:'fold',   eye:'sleepy', pat:'belly',  acc:'none'},
+ {name:'眨眼喵', ear:'pointy', eye:'wink',   pat:'none',   acc:'bell'},
+ {name:'圓滾喵', ear:'round',  eye:'star',   pat:'spot',   acc:'bow'}
+];
+var MAX_DEX=12;
+
+/* ======================= 繪製：史萊姆貓 ======================= */
+function drawCat(cx,cy,sc,cat,pal,sqx,sqy,tilt){
+  ctx.save();
+  ctx.translate(cx,cy);
+  if(tilt) ctx.rotate(tilt);
+  ctx.scale(sc*(sqx||1),sc*(sqy||1));
+  var w=60,h=42;
+
+  /* 影子 */
+  ctx.save();
+  ctx.globalAlpha=0.26; ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.ellipse(0,h*1.36,w*0.86,h*0.20,0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  /* 貓耳（先畫，讓身體壓住耳根） */
+  ctx.fillStyle=pal.main;
+  ctx.strokeStyle=pal.dark; ctx.lineWidth=3; ctx.lineJoin='round';
+  for(var s=-1;s<=1;s+=2){
+    ctx.save(); ctx.scale(s,1);
+    if(cat.ear==='pointy'){
+      ctx.beginPath(); ctx.moveTo(w*0.72,-h*0.60);
+      ctx.lineTo(w*0.62,-h*1.66); ctx.lineTo(w*0.16,-h*1.00); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle=pal.dark; ctx.globalAlpha=0.45;
+      ctx.beginPath(); ctx.moveTo(w*0.60,-h*0.78);
+      ctx.lineTo(w*0.55,-h*1.38); ctx.lineTo(w*0.28,-h*0.98); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha=1; ctx.fillStyle=pal.main;
+    }else if(cat.ear==='round'){
+      ctx.beginPath(); ctx.arc(w*0.50,-h*1.18,w*0.27,0,Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle=pal.dark; ctx.globalAlpha=0.4;
+      ctx.beginPath(); ctx.arc(w*0.50,-h*1.14,w*0.14,0,Math.PI*2); ctx.fill();
+      ctx.globalAlpha=1; ctx.fillStyle=pal.main;
+    }else{ /* 折耳 */
+      ctx.beginPath(); ctx.moveTo(w*0.74,-h*0.62);
+      ctx.lineTo(w*0.60,-h*1.40); ctx.lineTo(w*0.14,-h*1.02); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle=pal.dark;
+      ctx.beginPath(); ctx.moveTo(w*0.63,-h*1.30);
+      ctx.lineTo(w*0.20,-h*1.06); ctx.lineTo(w*0.58,-h*0.86); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle=pal.main;
+    }
+    ctx.restore();
+  }
+
+  /* 史萊姆身體 */
+  ctx.beginPath();
+  ctx.moveTo(-w,h);
+  ctx.bezierCurveTo(-w*1.07,-h*0.30,-w*0.58,-h*1.20,0,-h*1.10);
+  ctx.bezierCurveTo(w*0.58,-h*1.20,w*1.07,-h*0.30,w,h);
+  ctx.quadraticCurveTo(0,h*1.32,-w,h);
+  ctx.closePath();
+  ctx.fillStyle=pal.main; ctx.fill();
+  ctx.strokeStyle=pal.dark; ctx.lineWidth=3.2; ctx.stroke();
+
+  /* 花紋（裁切在身體內） */
+  ctx.save(); ctx.clip();
+  if(cat.pat==='stripe'){
+    ctx.fillStyle=pal.dark; ctx.globalAlpha=0.55;
+    for(var i=0;i<3;i++){ rrect(-w*1.1,-h*0.62+i*h*0.52,w*2.2,h*0.20,6); ctx.fill(); }
+    ctx.globalAlpha=1;
+  }else if(cat.pat==='spot'){
+    ctx.fillStyle=pal.dark; ctx.globalAlpha=0.5;
+    var sp=[[-0.52,0.22,0.20],[0.48,0.46,0.16],[0.10,0.86,0.14]];
+    for(var k=0;k<sp.length;k++){
+      ctx.beginPath(); ctx.arc(w*sp[k][0],h*sp[k][1],w*sp[k][2],0,Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha=1;
+  }else if(cat.pat==='belly'){
+    ctx.fillStyle=pal.light; ctx.globalAlpha=0.75;
+    ctx.beginPath(); ctx.ellipse(0,h*0.52,w*0.52,h*0.60,0,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha=1;
+  }
+  /* 史萊姆高光 */
+  ctx.fillStyle='rgba(255,255,255,0.36)';
+  ctx.beginPath(); ctx.ellipse(-w*0.40,-h*0.60,w*0.20,h*0.24,-0.5,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  /* 眼睛 */
+  var ey=-h*0.22, ex=w*0.32, er=w*0.135;
+  ctx.fillStyle='#1a1428';
+  if(cat.eye==='round'){
+    for(var s2=-1;s2<=1;s2+=2){
+      ctx.beginPath(); ctx.arc(s2*ex,ey,er,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#fff';
+      ctx.beginPath(); ctx.arc(s2*ex-er*0.30,ey-er*0.34,er*0.36,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#1a1428';
+    }
+  }else if(cat.eye==='sleepy'){
+    ctx.strokeStyle='#1a1428'; ctx.lineWidth=4.2; ctx.lineCap='round';
+    for(var s3=-1;s3<=1;s3+=2){
+      ctx.beginPath(); ctx.arc(s3*ex,ey+er*0.5,er,Math.PI*1.15,Math.PI*1.85); ctx.stroke();
+    }
+  }else if(cat.eye==='star'){
+    for(var s4=-1;s4<=1;s4+=2){
+      ctx.save(); ctx.translate(s4*ex,ey);
+      ctx.beginPath();
+      for(var a=0;a<10;a++){
+        var rr=(a%2===0)?er*1.25:er*0.5, an=-Math.PI/2+a*Math.PI/5;
+        var px=Math.cos(an)*rr, py=Math.sin(an)*rr;
+        if(a===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+      }
+      ctx.closePath(); ctx.fill(); ctx.restore();
+    }
+  }else{ /* wink */
+    ctx.beginPath(); ctx.arc(-ex,ey,er,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.arc(-ex-er*0.3,ey-er*0.34,er*0.36,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#1a1428'; ctx.lineWidth=4.2; ctx.lineCap='round';
+    ctx.beginPath(); ctx.arc(ex,ey+er*0.5,er,Math.PI*1.15,Math.PI*1.85); ctx.stroke();
+  }
+
+  /* 腮紅＋嘴 */
+  ctx.fillStyle='rgba(255,140,170,0.30)';
+  ctx.beginPath(); ctx.ellipse(-w*0.60,ey+h*0.30,w*0.15,h*0.10,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(w*0.60,ey+h*0.30,w*0.15,h*0.10,0,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='#1a1428'; ctx.lineWidth=2.6; ctx.lineCap='round';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.14,h*0.16); ctx.quadraticCurveTo(0,h*0.32,w*0.14,h*0.16);
+  ctx.stroke();
+
+  /* 配件（固定色，不洩漏題目顏色） */
+  ctx.lineJoin='round';
+  if(cat.acc==='ahoge'){
+    ctx.strokeStyle='#4b3f6e'; ctx.lineWidth=5; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(0,-h*1.08);
+    ctx.quadraticCurveTo(w*0.30,-h*1.90,-w*0.14,-h*2.05); ctx.stroke();
+  }else if(cat.acc==='bow'){
+    ctx.fillStyle='#ff7fa8'; ctx.strokeStyle='#c14b73'; ctx.lineWidth=2.4;
+    ctx.beginPath(); ctx.moveTo(w*0.32,-h*1.10); ctx.lineTo(w*0.66,-h*1.42);
+    ctx.lineTo(w*0.66,-h*0.80); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(w*0.32,-h*1.10); ctx.lineTo(w*0.02,-h*1.42);
+    ctx.lineTo(w*0.02,-h*0.80); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(w*0.33,-h*1.10,w*0.09,0,Math.PI*2); ctx.fill(); ctx.stroke();
+  }else if(cat.acc==='bell'){
+    ctx.strokeStyle='#5c4a2e'; ctx.lineWidth=6; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(-w*0.52,h*0.42); ctx.quadraticCurveTo(0,h*0.72,w*0.52,h*0.42); ctx.stroke();
+    ctx.fillStyle='#ffd24a'; ctx.strokeStyle='#a8791a'; ctx.lineWidth=2.2;
+    ctx.beginPath(); ctx.arc(0,h*0.66,w*0.13,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle='#a8791a'; ctx.beginPath();
+    ctx.moveTo(-w*0.09,h*0.66); ctx.lineTo(w*0.09,h*0.66); ctx.stroke();
+  }else if(cat.acc==='horn'){
+    ctx.fillStyle='#f2ece0'; ctx.strokeStyle='#b6ab97'; ctx.lineWidth=2.2;
+    ctx.beginPath(); ctx.moveTo(-w*0.16,-h*1.16); ctx.lineTo(-w*0.06,-h*1.72);
+    ctx.lineTo(w*0.04,-h*1.16); ctx.closePath(); ctx.fill(); ctx.stroke();
+  }else if(cat.acc==='bubble'){
+    ctx.strokeStyle='rgba(255,255,255,0.75)'; ctx.lineWidth=2;
+    ctx.fillStyle='rgba(255,255,255,0.18)';
+    var bb=[[-0.36,-1.50,0.13],[0.06,-1.86,0.18],[0.48,-1.42,0.10]];
+    for(var b=0;b<bb.length;b++){
+      ctx.beginPath(); ctx.arc(w*bb[b][0],h*bb[b][1],w*bb[b][2],0,Math.PI*2);
+      ctx.fill(); ctx.stroke();
+    }
+  }else if(cat.acc==='crown'){
+    ctx.fillStyle='#ffd24a'; ctx.strokeStyle='#a8791a'; ctx.lineWidth=2.2;
+    ctx.beginPath();
+    ctx.moveTo(-w*0.34,-h*1.16); ctx.lineTo(-w*0.34,-h*1.66); ctx.lineTo(-w*0.16,-h*1.36);
+    ctx.lineTo(0,-h*1.78); ctx.lineTo(w*0.16,-h*1.36); ctx.lineTo(w*0.34,-h*1.66);
+    ctx.lineTo(w*0.34,-h*1.16); ctx.closePath(); ctx.fill(); ctx.stroke();
+  }else if(cat.acc==='leaf'){
+    ctx.fillStyle='#6ea84e'; ctx.strokeStyle='#3f6b2c'; ctx.lineWidth=2.2;
+    ctx.save(); ctx.translate(w*0.10,-h*1.24); ctx.rotate(-0.5);
+    ctx.beginPath(); ctx.ellipse(0,-h*0.30,w*0.10,h*0.36,0,0,Math.PI*2);
+    ctx.fill(); ctx.stroke(); ctx.restore();
+  }
+  ctx.restore();
+}
+
+/* ======================= 粒子／浮字／震動 ======================= */
+var parts=[],floats=[],shake=0;
+function burst(x,y,color,n,pow,kind){
+  for(var i=0;i<n;i++){
+    if(parts.length>520) break;
+    var a=Math.random()*Math.PI*2, sp=rnd(0.4,1)*pow;
+    parts.push({x:x,y:y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-rnd(0,pow*0.4),
+      life:rnd(0.42,0.95),max:1,r:rnd(2.4,6.2),c:color,g:kind==='confetti'?260:180,
+      kind:kind||'dot',rot:Math.random()*6.3,vr:rnd(-9,9)});
+    parts[parts.length-1].max=parts[parts.length-1].life;
+  }
+}
+function floatTxt(x,y,s,color,size){
+  floats.push({x:x,y:y,s:s,c:color,size:size||20,life:0.95,max:0.95});
+}
+function updateFx(dt){
+  for(var i=parts.length-1;i>=0;i--){
+    var p=parts[i];
+    p.life-=dt; if(p.life<=0){parts.splice(i,1);continue;}
+    p.x+=p.vx*dt*60; p.y+=p.vy*dt*60; p.vy+=p.g*dt*0.02; p.vx*=0.985; p.rot+=p.vr*dt;
+  }
+  for(var j=floats.length-1;j>=0;j--){
+    var f=floats[j]; f.life-=dt; f.y-=34*dt;
+    if(f.life<=0) floats.splice(j,1);
+  }
+  if(shake>0){ shake-=dt*11; if(shake<0) shake=0; }
+}
+function drawFx(){
+  for(var i=0;i<parts.length;i++){
+    var p=parts[i], a=clamp(p.life/p.max,0,1);
+    ctx.save(); ctx.globalAlpha=a; ctx.fillStyle=p.c;
+    if(p.kind==='confetti'){
+      ctx.translate(p.x,p.y); ctx.rotate(p.rot);
+      ctx.fillRect(-p.r,-p.r*0.5,p.r*2,p.r);
+    }else{
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r*a+0.6,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+  for(var j=0;j<floats.length;j++){
+    var f=floats[j], t=clamp(f.life/f.max,0,1);
+    ctx.save(); ctx.globalAlpha=t;
+    var sc=1+(1-t)*0.35;
+    ctx.translate(f.x,f.y); ctx.scale(sc,sc);
+    ctx.lineWidth=4; ctx.strokeStyle='rgba(0,0,0,0.55)';
+    ctx.font='800 '+f.size+'px "Noto Sans TC","PingFang TC",sans-serif';
+    ctx.textAlign='center';
+    ctx.strokeText(f.s,0,0); ctx.fillStyle=f.c; ctx.fillText(f.s,0,0);
+    ctx.restore();
+  }
+}
+
+/* ======================= 遊戲狀態 ======================= */
+var G={};
+function resetGame(){
+  G={
+    state:'title', t:0, st:0,
+    score:0, lives:3, combo:0, maxCombo:0, q:0, correct:0,
+    dex:[], pool:shuffle(CAT_POOL.slice()),
+    cur:null, reveal:null, learn:null, repaint:null,
+    nextLearn:0, nextRepaint:18, pending:null, lastCat:null,
+    recorded:false, reported:false, tickT:0, gameT:0,
+    newDex:0
+  };
+}
+resetGame();
+
+/* 依進度算難度：色差寬容度、限時、選項數 */
+function diffOf(){
+  var q=G.q;
+  var dh, dl, tl, n;
+  if(q<3){ dh=56; dl=20; tl=8.5; n=4; }
+  else{
+    dh=Math.max(9, 44-(q-3)*1.35);
+    dl=Math.max(5, 17-(q-3)*0.42);
+    tl=Math.max(2.6, 7.0-(q-3)*0.13);
+    n=q<7?4:(q<15?5:6);
+  }
+  return {dh:dh, dl:dl, tl:tl, n:n};
+}
+function starLv(){ return clamp(1+Math.floor(G.q/8),1,5); }
+
+/* 為新貓挑一個和現有貓夠遠的色相 */
+function freshColor(minGap){
+  var best=null,bestD=-1;
+  for(var i=0;i<70;i++){
+    var h=rnd(0,360), d=999;
+    for(var k=0;k<G.dex.length;k++) d=Math.min(d,hueDist(h,G.dex[k].col.h));
+    if(d>bestD){ bestD=d; best=h; }
+    if(d>=minGap) break;
+  }
+  return {h:best, s:rnd(62,90), l:rnd(46,66)};
+}
+
+/* 新貓登場：全彩展示，讓玩家記憶 */
+function doLearn(){
+  var def=G.pool.shift();
+  if(!def){ nextQuestion(true); return; }
+  var e={def:def, col:freshColor(G.dex.length<5?46:30), asked:0};
+  G.dex.push(e);
+  if(!DEXBOOK[def.name]){ DEXBOOK[def.name]=1; G.newDex++; saveDex(); }
+  G.learn={e:e, T:2.0};
+  G.state='learn'; G.st=0;
+  sfxLearn();
+  burst(200,190,cssOf(e.col),40,3.4);
+  G.nextLearn=G.q+(G.dex.length<3?2:(G.dex.length<8?3:5));
+}
+
+/* 潑漆事件（第 3 分鐘後的新壓力源）：已記住的貓偷偷換色 */
+function doRepaint(){
+  var cand=[];
+  for(var i=0;i<G.dex.length;i++) if(G.dex[i].asked>=2) cand.push(G.dex[i]);
+  if(!cand.length){ newQuestion(); return; }
+  var e=pick(cand);
+  var old={h:e.col.h,s:e.col.s,l:e.col.l};
+  var nc=freshColor(34);
+  if(hueDist(nc.h,old.h)<50) nc.h=(old.h+rnd(70,160))%360;
+  e.col=nc;
+  G.repaint={e:e, old:old, T:2.0};
+  G.state='repaint'; G.st=0;
+  G.pending=e;
+  sfxRepaint();
+  shake=0.6;
+  burst(200,190,cssOf(nc),46,4.0);
+  G.nextRepaint=G.q+6;
+}
+
+/* 產生誘餌色塊：色差隨難度收窄，中後期混入「別隻貓的真色」 */
+function makeOptions(correct,d){
+  var opts=[{h:correct.h,s:correct.s,l:correct.l}];
+  function okWith(c){
+    for(var i=0;i<opts.length;i++){
+      var o=opts[i];
+      if(hueDist(o.h,c.h)<d.dh*0.72 && Math.abs(o.l-c.l)<d.dl*0.75) return false;
+    }
+    return true;
+  }
+  /* 混淆用：別隻貓的真實顏色 */
+  if(G.q>=12 && G.dex.length>1){
+    var others=[];
+    for(var k=0;k<G.dex.length;k++){
+      var c=G.dex[k].col;
+      if(c===correct) continue;
+      var hd=hueDist(c.h,correct.h);
+      if(hd>=d.dh*0.9 && hd<=d.dh*3.4) others.push(c);
+    }
+    if(others.length){
+      var o2=pick(others);
+      opts.push({h:o2.h,s:o2.s,l:o2.l});
+    }
+  }
+  var guard=0;
+  while(opts.length<d.n && guard<260){
+    guard++;
+    var sign=Math.random()<0.5?-1:1, sign2=Math.random()<0.5?-1:1, cand;
+    if(Math.random()<0.58){
+      cand={h:correct.h+sign*(d.dh+Math.random()*d.dh*0.95),
+            s:clamp(correct.s+rnd(-7,7),50,95),
+            l:clamp(correct.l+rnd(-4,4),38,74)};
+    }else{
+      cand={h:correct.h+sign*Math.random()*d.dh*0.40,
+            s:clamp(correct.s+sign2*rnd(4,16),46,96),
+            l:clamp(correct.l+sign2*(d.dl+Math.random()*d.dl*0.7),34,78)};
+    }
+    if(okWith(cand)) opts.push(cand);
+    else if(guard>200){
+      cand.h=correct.h+sign*(d.dh*2.2+Math.random()*40);
+      cand.l=clamp(correct.l+sign2*d.dl*1.8,34,78);
+      opts.push(cand);
+    }
+  }
+  return shuffle(opts);
+}
+
+function newQuestion(){
+  var d=diffOf();
+  var e;
+  if(G.pending){ e=G.pending; G.pending=null; }
+  else{
+    var cand=G.dex.slice();
+    if(cand.length>1 && G.lastCat){
+      cand=cand.filter(function(x){return x!==G.lastCat;});
+      if(!cand.length) cand=G.dex.slice();
+    }
+    /* 偏好比較久沒被考的貓 */
+    cand.sort(function(a,b){return a.asked-b.asked;});
+    var take=cand.slice(0,Math.max(1,Math.ceil(cand.length*0.7)));
+    e=pick(take);
+  }
+  e.asked++;
+  G.lastCat=e;
+  var opts=makeOptions(e.col,d);
+  var ci=0;
+  for(var i=0;i<opts.length;i++) if(opts[i].h===e.col.h && opts[i].s===e.col.s && opts[i].l===e.col.l) ci=i;
+  G.cur={e:e, opts:opts, ci:ci, tl:d.tl, left:d.tl, rects:layoutOptions(opts.length),
+         showName:(G.q<10||G.repaintJust), press:-1, wob:0};
+  G.repaintJust=false;
+  G.state='quiz'; G.st=0; G.tickT=0;
+}
+
+function nextQuestion(skipLearn){
+  if(!skipLearn && G.dex.length<MAX_DEX && G.pool.length && G.q>=G.nextLearn){ doLearn(); return; }
+  if(G.q>=G.nextRepaint && G.q>=18 && G.dex.length>=3){ doRepaint(); return; }
+  newQuestion();
+}
+
+function layoutOptions(n){
+  var rects=[], cols=n<=4?2:3, rows=Math.ceil(n/cols);
+  var padX=18, gap=12, top=328, areaH=214;
+  var cw=(W-padX*2-gap*(cols-1))/cols;
+  var ch=(areaH-gap*(rows-1))/rows;
+  for(var i=0;i<n;i++){
+    var r=Math.floor(i/cols), c=i-r*cols;
+    var inRow=Math.min(cols,n-r*cols);
+    var rowW=inRow*cw+(inRow-1)*gap;
+    var sx=(W-rowW)/2;
+    rects.push({x:sx+c*(cw+gap), y:top+r*(ch+gap), w:cw, h:ch});
+  }
+  return rects;
+}
+
+/* 作答 */
+function answer(idx){
+  if(G.state!=='quiz'||!G.cur) return;
+  var cur=G.cur, ok=(idx===cur.ci);
+  G.q++;
+  var timeRatio=clamp(cur.left/cur.tl,0,1);
+  if(ok){
+    G.correct++;
+    G.combo++;
+    if(G.combo>G.maxCombo) G.maxCombo=G.combo;
+    var mult=1+Math.min(G.combo,15)*0.15;
+    var gain=Math.round((100+Math.round(timeRatio*80))*mult);
+    G.score+=gain;
+    sfxCorrect(G.combo);
+    var r=cur.rects[idx];
+    burst(r.x+r.w/2,r.y+r.h/2,cssOf(cur.opts[idx]),52,5.2);
+    burst(r.x+r.w/2,r.y+r.h/2,'#ffffff',16,3.4);
+    floatTxt(r.x+r.w/2,r.y+r.h/2,'+'+gain,'#ffe27a',24);
+    if(G.combo>=3) floatTxt(200,150,G.combo+' 連對！','#8ef7c8',26);
+    shake=0.18;
+    /* 破紀錄慶祝（局內即時） */
+    if(!G.recorded && G.score>BEST && BEST>0){
+      G.recorded=true; sfxRecord();
+      floatTxt(200,264,'★ 破紀錄了 ★','#ffd24a',30);
+      for(var c2=0;c2<70;c2++){
+        burst(rnd(20,380),rnd(60,180),'hsl('+rnd(0,360)+',90%,64%)',1,5.5,'confetti');
+      }
+    }
+  }else{
+    G.combo=0;
+    G.lives--;
+    sfxWrong();
+    shake=0.85;
+    var rr=cur.rects[cur.ci];
+    burst(rr.x+rr.w/2,rr.y+rr.h/2,cssOf(cur.opts[cur.ci]),34,4.2);
+    floatTxt(200,150,idx<0?'來不及了！':'選錯色了！','#ff8a8a',26);
+  }
+  var diffPct=idx>=0?colDiffPct(cur.opts[idx],cur.opts[cur.ci]):-1;
+  G.reveal={ok:ok, idx:idx, diff:diffPct, T:ok?0.85:1.75};
+  G.state='reveal'; G.st=0;
+}
+
+function gameOver(){
+  G.state='over'; G.st=0;
+  sfxOver();
+  if(G.score>BEST){ BEST=G.score; lsSet('mcmk_best',String(BEST)); }
+  if(G.maxCombo>BEST_STREAK){ BEST_STREAK=G.maxCombo; lsSet('mcmk_streak',String(BEST_STREAK)); }
+  G.dailyHit=markDaily(G.score);
+  if(!G.reported){
+    G.reported=true;
+    if(window.SC) SC.over(G.score);   /* 匿名數據回報 */
+  }
+}
+
+/* ======================= 更新 ======================= */
+function update(dt){
+  G.t+=dt; G.st+=dt;
+  updateFx(dt);
+  if(G.state==='quiz'||G.state==='reveal'||G.state==='learn'||G.state==='repaint') G.gameT+=dt;
+
+  if(G.state==='learn'){
+    if(G.st>=G.learn.T) nextQuestion(true);
+  }else if(G.state==='repaint'){
+    G.repaintJust=true;
+    if(G.st>=G.repaint.T) newQuestion();
+  }else if(G.state==='quiz'){
+    var cur=G.cur;
+    cur.left-=dt;
+    cur.wob=Math.max(0,cur.wob-dt*4);
+    var ratio=cur.left/cur.tl;
+    if(ratio<0.35 && ratio>0){
+      G.tickT+=dt;
+      var iv=ratio<0.15?0.22:0.42;
+      if(G.tickT>=iv){ G.tickT=0; sfxTick(); }
+    }
+    if(cur.left<=0) answer(-1);
+  }else if(G.state==='reveal'){
+    if(G.st>=G.reveal.T){
+      if(G.lives<=0) gameOver();
+      else nextQuestion(false);
+    }
+  }
+}
+
+/* ======================= 繪製 ======================= */
+var dust=[];
+for(var i=0;i<44;i++) dust.push({x:rnd(0,W),y:rnd(0,H),r:rnd(0.6,2.0),s:rnd(4,16),a:rnd(0.12,0.4)});
+
+function drawBg(){
+  var g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#1b1440'); g.addColorStop(0.55,'#140f30'); g.addColorStop(1,'#0a0719');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  var t=G.t;
+  var r1=ctx.createRadialGradient(200+Math.sin(t*0.3)*70,150,10,200,150,240);
+  r1.addColorStop(0,'rgba(122,86,255,0.20)'); r1.addColorStop(1,'rgba(122,86,255,0)');
+  ctx.fillStyle=r1; ctx.fillRect(0,0,W,H);
+  var r2=ctx.createRadialGradient(200+Math.cos(t*0.24)*90,470,10,200,470,220);
+  r2.addColorStop(0,'rgba(60,190,190,0.14)'); r2.addColorStop(1,'rgba(60,190,190,0)');
+  ctx.fillStyle=r2; ctx.fillRect(0,0,W,H);
+  for(var i=0;i<dust.length;i++){
+    var d=dust[i];
+    d.y-=d.s*0.016; if(d.y<-4){ d.y=H+4; d.x=rnd(0,W); }
+    ctx.globalAlpha=d.a; ctx.fillStyle='#cbbcff';
+    ctx.beginPath(); ctx.arc(d.x,d.y,d.r,0,Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+}
+
+function drawHUD(){
+  txt('分數',16,24,12,'rgba(200,190,255,0.7)','left');
+  txt(String(G.score),16,48,26,'#ffffff','left','800');
+  txt('最佳 '+BEST,384,24,13,'rgba(200,190,255,0.75)','right','700');
+  /* 生命 */
+  ctx.textAlign='right';
+  var hs='';
+  for(var i=0;i<3;i++) hs+= (i<G.lives?'♥':'♡');
+  txt(hs,384,50,22,G.lives<=1?'#ff6f8a':'#ff9db0','right','800');
+  /* 難度指示 */
+  var lv=starLv(), ds='';
+  for(var k=0;k<5;k++) ds+=(k<lv?'◆':'◇');
+  txt('難度 '+ds,200,24,12,'rgba(255,214,120,0.9)');
+
+  /* 時間條 */
+  var bx=16,by=60,bw=W-32,bh=9;
+  ctx.fillStyle='rgba(255,255,255,0.10)'; rrect(bx,by,bw,bh,5); ctx.fill();
+  if(G.cur && (G.state==='quiz'||G.state==='reveal')){
+    var ratio=clamp(G.cur.left/G.cur.tl,0,1);
+    var col=ratio>0.5?'#6ff2c0':(ratio>0.25?'#ffd24a':'#ff6f7f');
+    if(ratio<=0.25 && Math.floor(G.t*10)%2===0) col='#ffffff';
+    ctx.fillStyle=col; rrect(bx,by,Math.max(2,bw*ratio),bh,5); ctx.fill();
+  }
+  /* Combo */
+  if(G.combo>=2){
+    var pulse=1+Math.sin(G.t*10)*0.05;
+    ctx.save(); ctx.translate(348,96); ctx.scale(pulse,pulse);
+    txt('x'+(1+Math.min(G.combo,15)*0.15).toFixed(2),0,0,17,'#8ef7c8','center','800');
+    txt(G.combo+' 連對',0,16,12,'rgba(140,247,200,0.85)');
+    ctx.restore();
+  }
+}
+
+function drawOptions(){
+  var cur=G.cur; if(!cur) return;
+  var rv=G.reveal, revealing=(G.state==='reveal');
+  for(var i=0;i<cur.opts.length;i++){
+    var r=cur.rects[i], c=cur.opts[i];
+    var sc=1;
+    if(cur.press===i) sc=0.95;
+    if(revealing){
+      if(i===cur.ci) sc=1+Math.sin(G.st*14)*0.035+easeOut(clamp(G.st/0.2,0,1))*0.05;
+      else if(i===rv.idx) sc=0.92;
+      else sc=0.96;
+    }
+    ctx.save();
+    ctx.translate(r.x+r.w/2,r.y+r.h/2); ctx.scale(sc,sc); ctx.translate(-r.w/2,-r.h/2);
+    /* 底陰影 */
+    ctx.fillStyle='rgba(0,0,0,0.35)'; rrect(2,4,r.w,r.h,14); ctx.fill();
+    /* 色塊 */
+    var grad=ctx.createLinearGradient(0,0,0,r.h);
+    grad.addColorStop(0,cssOf(c,6)); grad.addColorStop(1,cssOf(c,-8));
+    ctx.fillStyle=grad; rrect(0,0,r.w,r.h,14); ctx.fill();
+    /* 高光 */
+    ctx.fillStyle='rgba(255,255,255,0.18)';
+    rrect(6,5,r.w-12,r.h*0.34,10); ctx.fill();
+    /* 外框 */
+    if(revealing && i===cur.ci){
+      ctx.strokeStyle='#fff8d0'; ctx.lineWidth=4.5;
+      rrect(0,0,r.w,r.h,14); ctx.stroke();
+      txt('✔',r.w/2,r.h/2+11,30,'rgba(255,255,255,0.95)');
+    }else if(revealing && i===rv.idx){
+      ctx.strokeStyle='#ff5a72'; ctx.lineWidth=4;
+      rrect(0,0,r.w,r.h,14); ctx.stroke();
+      txt('✘',r.w/2,r.h/2+10,26,'rgba(255,255,255,0.9)');
+    }else{
+      ctx.strokeStyle='rgba(255,255,255,0.22)'; ctx.lineWidth=2;
+      rrect(0,0,r.w,r.h,14); ctx.stroke();
+    }
+    /* 鍵盤編號 */
+    txt(String(i+1),10,r.h-8,12,'rgba(255,255,255,0.42)','left','700');
+    ctx.restore();
+  }
+}
+
+function drawGame(){
+  drawHUD();
+  var cx=200, cy=186;
+
+  if(G.state==='learn'){
+    var e=G.learn.e, p=clamp(G.st/0.4,0,1);
+    var pop=1+Math.sin(clamp(G.st,0,0.5)*Math.PI*2.2)*0.10*(1-p*0.4);
+    drawCat(cx,cy,1.16,e.def,palOf(e.col,1),pop,2-pop,Math.sin(G.t*3)*0.03);
+    txt('★ 新朋友登場 ★',200,290,18,'#ffd24a');
+    txt(e.def.name,200,322,30,cssOf(e.col,14),'center','800');
+    txt('記住牠的顏色！',200,356,20,'#ffffff');
+    /* 展示色條 */
+    var bw=200;
+    ctx.fillStyle='rgba(0,0,0,0.35)'; rrect(200-bw/2,376,bw,34,10); ctx.fill();
+    ctx.fillStyle=cssOf(e.col); rrect(200-bw/2+4,380,bw-8,26,8); ctx.fill();
+    var left=Math.max(0,G.learn.T-G.st);
+    txt('等一下就要考你囉…（'+left.toFixed(1)+'s）',200,436,14,'rgba(220,210,255,0.8)','center','400');
+    txt('點一下 / 按空白鍵 可跳過',200,462,13,'rgba(200,190,255,0.55)','center','400');
+    return;
+  }
+
+  if(G.state==='repaint'){
+    var e2=G.repaint.e;
+    var flick=(Math.floor(G.st*11)%2===0)?G.repaint.old:e2.col;
+    drawCat(cx,cy,1.12,e2.def,palOf(flick,1),1,1,Math.sin(G.t*22)*0.05);
+    txt('⚠ 有喵偷偷換色了！',200,290,22,'#ff9f4a');
+    txt(e2.def.name,200,326,28,cssOf(e2.col,14),'center','800');
+    txt('把新顏色記起來！',200,358,19,'#ffffff');
+    var bw2=200;
+    ctx.fillStyle='rgba(0,0,0,0.35)'; rrect(200-bw2/2,378,bw2,34,10); ctx.fill();
+    ctx.fillStyle=cssOf(e2.col); rrect(200-bw2/2+4,382,bw2-8,26,8); ctx.fill();
+    return;
+  }
+
+  var cur=G.cur; if(!cur) return;
+  var mix=0, e3=cur.e;
+  if(G.state==='reveal') mix=easeOut(clamp(G.st/0.34,0,1));
+  var sq=1, sqy=1;
+  if(G.state==='reveal'&&G.reveal.ok){
+    var b=Math.sin(clamp(G.st,0,0.45)*Math.PI*4)*0.12*(1-clamp(G.st/0.6,0,1));
+    sq=1+b; sqy=1-b;
+  }
+  var tiltA=(G.state==='reveal'&&!G.reveal.ok)?Math.sin(G.t*24)*0.06*(1-clamp(G.st/0.6,0,1)):Math.sin(G.t*1.6)*0.02;
+  drawCat(cx,cy,1.0,e3.def,palOf(e3.col,mix),sq,sqy,tiltA);
+
+  /* 名字（第 10 題起隱藏 → 只能靠外型辨認） */
+  if(cur.showName||G.state==='reveal'){
+    txt(e3.def.name,200,286,22,mix>0.5?cssOf(e3.col,14):'#e8e2ff','center','800');
+  }else{
+    txt('？？？喵',200,286,22,'rgba(200,190,255,0.55)','center','800');
+  }
+
+  if(G.state==='quiz'){
+    txt('牠原本是什麼顏色？',200,314,19,'#ffffff');
+  }else{
+    var rv=G.reveal;
+    if(rv.ok){
+      txt('答對！就是這個色 ✔',200,314,19,'#8ef7c8');
+    }else if(rv.idx<0){
+      txt('超時！正解在這 →',200,314,18,'#ff9f9f');
+    }else{
+      /* near-miss：把「差一點點」具體視覺化 */
+      var d=rv.diff;
+      ctx.save();
+      var y=308;
+      ctx.fillStyle=cssOf(cur.opts[rv.idx]); rrect(96,y-13,26,20,5); ctx.fill();
+      ctx.strokeStyle='#ff5a72'; ctx.lineWidth=2; rrect(96,y-13,26,20,5); ctx.stroke();
+      ctx.fillStyle=cssOf(cur.opts[cur.ci]); rrect(178,y-13,26,20,5); ctx.fill();
+      ctx.strokeStyle='#fff8d0'; ctx.lineWidth=2; rrect(178,y-13,26,20,5); ctx.stroke();
+      ctx.restore();
+      txt('你選',80,y+4,13,'#ff9f9f','right','700');
+      txt('正解',162,y+4,13,'#fff8d0','right','700');
+      var tip=d<10?('只差 '+d.toFixed(1)+'%！好可惜'):('差了 '+d.toFixed(1)+'%');
+      txt(tip,290,y+4,15,d<10?'#ffd24a':'rgba(230,220,255,0.8)','center','800');
+      ctx.restore&&0;
+    }
+  }
+  drawOptions();
+
+  /* 底部狀態 */
+  txt('已認識 '+G.dex.length+' 隻喵 · 第 '+(G.q+1)+' 題',200,578,13,'rgba(200,190,255,0.6)','center','400');
+}
+
+function drawTitle(){
+  var bob=Math.sin(G.t*2)*6;
+  /* 標題貓 */
+  var demo={name:'史萊姆喵',ear:'pointy',eye:'round',pat:'none',acc:'ahoge'};
+  var hue=(G.t*36)%360;
+  drawCat(200,168+bob,1.0,demo,palOf({h:hue,s:78,l:56},1),1,1,Math.sin(G.t*1.4)*0.05);
+
+  txt('喵色記憶王',200,278,42,'#ffffff','center','800');
+  ctx.save();
+  ctx.globalAlpha=0.9;
+  txt('記住每隻史萊姆貓的顏色，',200,312,17,'#cfc4ff','center','500');
+  txt('等牠褪成灰色時把正解挑回來！',200,336,17,'#cfc4ff','center','500');
+  ctx.restore();
+
+  /* 說明卡 */
+  ctx.fillStyle='rgba(0,0,0,0.30)'; rrect(28,354,344,120,14); ctx.fill();
+  ctx.strokeStyle='rgba(160,130,255,0.28)'; ctx.lineWidth=1.5; rrect(28,354,344,120,14); ctx.stroke();
+  txt('👆 點色塊作答（鍵盤 1~6 也行）',200,380,15,'#e8e2ff','center','500');
+  txt('⏱ 時間跑完或選錯 → 扣一顆 ❤',200,404,15,'#e8e2ff','center','500');
+  txt('🎨 誘餌色會越來越像，別被騙了',200,428,15,'#e8e2ff','center','500');
+  txt('❤❤❤ 三顆愛心用完就結束',200,452,15,'#e8e2ff','center','500');
+
+  /* 紀錄與回訪鉤子 */
+  txt('最高分 '+BEST+' · 最長連對 '+BEST_STREAK,200,496,14,'rgba(200,190,255,0.8)');
+  txt('圖鑑收集 '+dexCount()+' / '+CAT_POOL.length+' 隻喵',200,517,14,'rgba(140,247,200,0.85)');
+  var dtxt='今日目標 '+DAILY_TARGET+' 分';
+  if(DAILY.last===TODAY) dtxt='今日目標已達成 ✔ 連續 '+DAILY.streak+' 天';
+  else if(DAILY.streak>0) dtxt+='（連續達標 '+DAILY.streak+' 天，別斷！）';
+  txt(dtxt,200,538,14,DAILY.last===TODAY?'#ffd24a':'rgba(255,210,120,0.85)');
+
+  var a=0.55+Math.sin(G.t*4)*0.45;
+  ctx.globalAlpha=a;
+  txt('點一下開始',200,574,20,'#ffffff','center','800');
+  ctx.globalAlpha=1;
+}
+
+function drawOver(){
+  drawHUD();
+  ctx.fillStyle='rgba(8,5,20,0.80)'; ctx.fillRect(0,0,W,H);
+  var pop=easeOut(clamp(G.st/0.35,0,1));
+  ctx.save();
+  ctx.translate(200,300); ctx.scale(0.9+pop*0.1,0.9+pop*0.1); ctx.translate(-200,-300);
+
+  txt('遊戲結束',200,120,34,'#ffffff','center','800');
+  txt('本局分數',200,164,14,'rgba(200,190,255,0.75)');
+  txt(String(G.score),200,206,48,'#ffd24a','center','800');
+
+  /* near-miss 再利用 */
+  if(G.score>=BEST && G.score>0){
+    var g2=0.6+Math.sin(G.t*6)*0.4;
+    ctx.globalAlpha=g2;
+    txt('★ 新紀錄！你是喵色記憶王 ★',200,240,20,'#8ef7c8');
+    ctx.globalAlpha=1;
+  }else{
+    txt('差 '+(BEST-G.score)+' 分就破紀錄了！',200,240,19,'#ff9f4a');
+  }
+
+  ctx.fillStyle='rgba(255,255,255,0.06)'; rrect(40,262,320,152,14); ctx.fill();
+  ctx.strokeStyle='rgba(160,130,255,0.25)'; ctx.lineWidth=1.5; rrect(40,262,320,152,14); ctx.stroke();
+  var acc=G.q?Math.round(G.correct/G.q*100):0;
+  txt('答對率',72,290,14,'rgba(200,190,255,0.7)','left','500');
+  txt(acc+'%（'+G.correct+'/'+G.q+'）',328,290,15,'#ffffff','right','700');
+  txt('最長連對',72,320,14,'rgba(200,190,255,0.7)','left','500');
+  txt(G.maxCombo+' 連'+(G.maxCombo>=BEST_STREAK&&G.maxCombo>0?'（新紀錄）':''),328,320,15,'#8ef7c8','right','700');
+  txt('記住的喵',72,350,14,'rgba(200,190,255,0.7)','left','500');
+  txt(G.dex.length+' 隻',328,350,15,'#ffffff','right','700');
+  txt('歷史最高',72,380,14,'rgba(200,190,255,0.7)','left','500');
+  txt(String(BEST),328,380,15,'#ffd24a','right','700');
+  if(G.newDex>0) txt('圖鑑新解鎖 '+G.newDex+' 隻！',200,406,14,'#8ef7c8');
+  else txt('圖鑑收集 '+dexCount()+' / '+CAT_POOL.length,200,406,14,'rgba(200,190,255,0.7)','center','500');
+
+  /* 每日目標鉤子 */
+  if(G.dailyHit) txt('🎯 今日目標達成！連續 '+DAILY.streak+' 天',200,442,17,'#ffd24a');
+  else if(DAILY.last===TODAY) txt('🎯 今日目標已達成（連續 '+DAILY.streak+' 天）',200,442,15,'rgba(255,210,120,0.85)');
+  else txt('🎯 今日目標 '+DAILY_TARGET+' 分，還差 '+Math.max(0,DAILY_TARGET-G.score)+' 分',200,442,15,'rgba(255,210,120,0.9)');
+
+  txt('顏色每局都會重洗，記憶要重來喔',200,474,13,'rgba(200,190,255,0.6)','center','400');
+
+  var a=0.5+Math.sin(G.t*5)*0.5;
+  ctx.globalAlpha=a;
+  txt('點一下馬上再來一局',200,522,22,'#ffffff','center','800');
+  ctx.globalAlpha=1;
+  txt('（鍵盤 空白鍵 / Enter 也可以）',200,548,13,'rgba(200,190,255,0.55)','center','400');
+  ctx.restore();
+}
+
+function draw(){
+  ctx.save();
+  if(shake>0){
+    var s=shake*9;
+    ctx.translate(rnd(-s,s),rnd(-s,s));
+  }
+  drawBg();
+  if(G.state==='title') drawTitle();
+  else if(G.state==='over') drawOver();
+  else drawGame();
+  drawFx();
+  ctx.restore();
+}
+
+/* ======================= 輸入 ======================= */
+function toLocal(e){
+  var r=cv.getBoundingClientRect();
+  return {x:(e.clientX-r.left)/r.width*W, y:(e.clientY-r.top)/r.height*H};
+}
+function hitOption(p){
+  if(!G.cur) return -1;
+  for(var i=0;i<G.cur.rects.length;i++){
+    var r=G.cur.rects[i];
+    if(p.x>=r.x-3&&p.x<=r.x+r.w+3&&p.y>=r.y-3&&p.y<=r.y+r.h+3) return i;
+  }
+  return -1;
+}
+function onDown(e){
+  e.preventDefault();
+  audio();
+  var p=toLocal(e);
+  if(G.state==='title'){ startGame(); return; }
+  if(G.state==='over'){ if(G.st>0.5){ resetGame(); startGame(); } return; }
+  if(G.state==='learn'){ if(G.st>0.5) nextQuestion(true); return; }
+  if(G.state==='quiz'){
+    var i=hitOption(p);
+    if(i>=0){ G.cur.press=i; sfxClick(); }
+  }
+}
+function onUp(e){
+  if(e&&e.preventDefault) e.preventDefault();
+  if(G.state==='quiz'&&G.cur&&G.cur.press>=0){
+    var i=G.cur.press; G.cur.press=-1;
+    var p=e&&e.clientX!==undefined?toLocal(e):null;
+    if(!p||hitOption(p)===i) answer(i);
+  }
+  if(G.cur) G.cur.press=-1;
+}
+function clearInput(){ if(G.cur) G.cur.press=-1; }
+
+cv.addEventListener('pointerdown',onDown,{passive:false});
+cv.addEventListener('pointerup',onUp,{passive:false});
+cv.addEventListener('pointercancel',clearInput,{passive:true});
+cv.addEventListener('pointerleave',clearInput,{passive:true});
+window.addEventListener('blur',clearInput);
+document.addEventListener('visibilitychange',clearInput);
+cv.addEventListener('contextmenu',function(e){e.preventDefault();});
+
+window.addEventListener('keydown',function(e){
+  var k=e.key;
+  if(k===' '||k==='Spacebar'||k==='Enter'){
+    e.preventDefault(); audio();
+    if(G.state==='title'){ startGame(); }
+    else if(G.state==='over'){ if(G.st>0.5){ resetGame(); startGame(); } }
+    else if(G.state==='learn'){ if(G.st>0.5) nextQuestion(true); }
+    return;
+  }
+  if(G.state==='quiz'&&G.cur){
+    var n=parseInt(k,10);
+    if(n>=1&&n<=G.cur.opts.length){ audio(); sfxClick(); answer(n-1); }
+  }
+});
+
+function startGame(){
+  resetGame();
+  audio(); sfxClick();
+  G.state='learn'; G.st=0;
+  doLearn();
+}
+
+/* ======================= 主迴圈（固定時間步長） ======================= */
+var STEP=1/60, acc=0, last=0;
+function frame(ts){
+  requestAnimationFrame(frame);
+  try{
+    if(!last) last=ts;
+    var dt=(ts-last)/1000; last=ts;
+    if(dt>0.25) dt=0.25;
+    if(dt<0) dt=0;
+    acc+=dt;
+    var guard=0;
+    while(acc>=STEP&&guard<8){ update(STEP); acc-=STEP; guard++; }
+    if(guard>=8) acc=0;
+    draw();
+  }catch(err){
+    /* 保護主迴圈不中斷（避免任何未捕捉例外卡死畫面） */
+  }
+}
+requestAnimationFrame(frame);
+
+})();
+</script>
+<script src="../../sc_config.js"></script>
+<script src="../../stats.js"></script>
+</body>
+</html>
