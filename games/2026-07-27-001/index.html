@@ -1,0 +1,804 @@
+<!--GAMEMETA {"title":"喵爪急診室","emoji":"🐾","genre":"反應","inspiration":"醫起救世界：鼠裡逃生","desc":"拖對肉球藥膏救病貓，別讓噴嚏瘟疫爆表"}-->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>喵爪急診室</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#070d11;overflow:hidden;
+  font-family:system-ui,"Microsoft JhengHei","PingFang TC",sans-serif;
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+body{display:flex;align-items:center;justify-content:center}
+canvas{touch-action:none;display:block;border-radius:12px;box-shadow:0 0 46px rgba(0,0,0,.85)}
+.back{position:fixed;left:8px;top:8px;z-index:9;color:#8fe3b0;background:rgba(0,0,0,.5);
+  padding:5px 11px;border-radius:14px;font-size:13px;text-decoration:none;border:1px solid rgba(143,227,176,.3)}
+</style>
+</head>
+<body>
+<a class="back" href="../../index.html">← 回遊戲區</a>
+<canvas id="cv"></canvas>
+<script>
+(function(){
+'use strict';
+/* ===== 基本設定：邏輯畫布 400x600 直式 ===== */
+var W=400,H=600;
+var cv=document.getElementById('cv');
+var ctx=cv.getContext('2d');
+var EMF='"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",system-ui,sans-serif';
+var UIF='system-ui,"Microsoft JhengHei","PingFang TC",sans-serif';
+
+/* 高解析度輸出：實體緩衝 = 顯示尺寸 x dpr(上限3)，邏輯座標維持 400x600 */
+function resize(){
+  var dpr=Math.min(window.devicePixelRatio||1,3);
+  var s=Math.min(window.innerWidth/W,window.innerHeight/H);
+  if(!isFinite(s)||s<=0)s=1;
+  cv.style.width=(W*s)+'px';
+  cv.style.height=(H*s)+'px';
+  cv.width=Math.round(W*s*dpr);
+  cv.height=Math.round(H*s*dpr);
+  ctx.setTransform(s*dpr,0,0,s*dpr,0,0);
+}
+window.addEventListener('resize',resize);
+window.addEventListener('orientationchange',resize);
+resize();
+
+/* 輸入座標一律用 getBoundingClientRect 比例換算回邏輯座標 */
+function toLogic(e){
+  var r=cv.getBoundingClientRect();
+  return {x:(e.clientX-r.left)/r.width*W,y:(e.clientY-r.top)/r.height*H};
+}
+
+/* ===== 音效：全部 WebAudio 合成，零外部資源 ===== */
+var AC=null;
+function ac(){
+  if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){AC=null;}}
+  if(AC&&AC.state==='suspended'){try{AC.resume().catch(function(){});}catch(e){}}
+  return AC;
+}
+function tone(f1,f2,dur,type,vol,delay){
+  var a=ac(); if(!a)return;
+  try{
+    var t0=a.currentTime+(delay||0);
+    var o=a.createOscillator(),g=a.createGain();
+    o.type=type||'sine';
+    o.frequency.setValueAtTime(f1,t0);
+    if(f2)o.frequency.exponentialRampToValueAtTime(Math.max(24,f2),t0+dur);
+    g.gain.setValueAtTime(0.0001,t0);
+    g.gain.linearRampToValueAtTime(vol||0.18,t0+0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+    o.connect(g);g.connect(a.destination);
+    o.start(t0);o.stop(t0+dur+0.06);
+  }catch(e){}
+}
+function noise(dur,vol,freq){
+  var a=ac(); if(!a)return;
+  try{
+    var n=Math.max(1,Math.floor(a.sampleRate*dur));
+    var b=a.createBuffer(1,n,a.sampleRate),d=b.getChannelData(0);
+    for(var i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);
+    var s=a.createBufferSource();s.buffer=b;
+    var f=a.createBiquadFilter();f.type='bandpass';f.frequency.value=freq||900;
+    var g=a.createGain();g.gain.value=vol||0.14;
+    s.connect(f);f.connect(g);g.connect(a.destination);s.start();
+  }catch(e){}
+}
+function sHeal(c){ // 治好：連段越高音越高（指數爽感）
+  var b=520*Math.pow(1.055,Math.min(c,14));
+  tone(b,b*1.5,0.16,'triangle',0.2,0);
+  tone(b*2,b*2.6,0.13,'sine',0.09,0.05);
+}
+function sStage(){tone(700,980,0.1,'square',0.11,0);}
+function sWrong(){tone(180,70,0.28,'sawtooth',0.19,0);noise(0.2,0.13,420);}
+function sTimeout(){tone(260,90,0.4,'square',0.16,0);noise(0.3,0.1,300);}
+function sPick(){tone(920,1180,0.05,'square',0.09,0);}
+function sEmpty(){tone(150,120,0.12,'square',0.12,0);}
+function sWarn(){tone(1250,1250,0.06,'square',0.1,0);tone(1250,1250,0.06,'square',0.1,0.12);}
+function sLevel(){tone(520,520,0.09,'triangle',0.14,0);tone(660,660,0.09,'triangle',0.14,0.09);tone(880,880,0.14,'triangle',0.14,0.18);}
+function sRecord(){[660,880,1100,1320,1650].forEach(function(f,i){tone(f,f,0.16,'triangle',0.16,i*0.075);});}
+function sOver(){tone(420,90,0.75,'sawtooth',0.2,0);noise(0.5,0.1,240);}
+function sStart(){tone(440,880,0.2,'triangle',0.16,0);}
+
+/* ===== 症狀 / 藥膏 對照表 ===== */
+var SYM=[
+ {emo:'🤧',name:'噴嚏'},
+ {emo:'🥵',name:'發燒'},
+ {emo:'🤢',name:'反胃'},
+ {emo:'🥴',name:'暈眩'},
+ {emo:'😴',name:'嗜睡'}
+];
+var MED=[
+ {emo:'💧',name:'藍噴劑',col:'#48b6ff',dark:'#1f6fa8'},
+ {emo:'❄️',name:'冰肉球貼',col:'#7fe6e0',dark:'#2f8f8c'},
+ {emo:'🍵',name:'粉胃藥',col:'#ff8fb8',dark:'#a84a70'},
+ {emo:'🌀',name:'定神錠',col:'#b58cff',dark:'#6a45b0'},
+ {emo:'⚡',name:'提神罐',col:'#ffd24a',dark:'#a8801a'}
+];
+
+/* ===== 版面座標 ===== */
+var BEDX=[10,206],BEDY=[150,276],BEDW=184,BEDH=120;
+var beds=[
+ {x:BEDX[0],y:BEDY[0],key:'Q'},
+ {x:BEDX[1],y:BEDY[0],key:'W'},
+ {x:BEDX[0],y:BEDY[1],key:'E'},
+ {x:BEDX[1],y:BEDY[1],key:'R'}
+];
+var BW=70,BH=124,BY=424,BGAP=7,BX0=11;
+function bottleRect(i){return {x:BX0+i*(BW+BGAP),y:BY,w:BW,h:BH};}
+
+/* ===== 存檔 ===== */
+function lsGet(k,d){try{var v=localStorage.getItem(k);return v===null?d:v;}catch(e){return d;}}
+function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+function ymd(d){return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);}
+var TODAY=ymd(new Date());
+var best=parseInt(lsGet('mewER_best','0'),10)||0;
+var dailyDate=lsGet('mewER_dailyDate','');
+var dailyBest=parseInt(lsGet('mewER_daily','0'),10)||0;
+if(dailyDate!==TODAY){dailyBest=0;}
+var streakDate=lsGet('mewER_sDate','');
+var streak=parseInt(lsGet('mewER_streak','0'),10)||0;
+function touchStreak(){ // 每日回訪連續天數（明日再來鉤子）
+  if(streakDate===TODAY)return;
+  var y=new Date();y.setDate(y.getDate()-1);
+  streak=(streakDate===ymd(y))?streak+1:1;
+  streakDate=TODAY;
+  lsSet('mewER_sDate',streakDate);lsSet('mewER_streak',String(streak));
+}
+
+/* ===== 遊戲狀態 ===== */
+var state='title';
+var t=0,score=0,plague=0,combo=0,maxCombo=0,cured=0,wrongs=0;
+var spawnT=0,queue=[],parts=[],floats=[],stock=[],medOrder=[0,1,2,3,4];
+var shake=0,flashRed=0,flashGood=0,recordShown=false,overNear=0;
+var selMed=-1,pendBed=-1,drag=null,hoverBed=-1;
+var sneezeT=0,shuffleT=0,shuffleWarn=0,lastPhase=0,titlePulse=0;
+var regen=[0,0,0,0,0];
+
+function bedsActive(){return t<12?2:(t<75?3:4);}
+function symCount(){return t<15?2:(t<38?3:(t<65?4:5));}
+function spawnGap(){return Math.max(0.78,2.7-t*0.0115);}
+function patienceMax(){return Math.max(2.5,8.0-t*0.0265);}
+function mutateChance(){return t<55?0:Math.min(0.38,(t-55)*0.006);}
+function comboMult(){return 1+Math.min(combo,20)*0.15;}
+
+function reset(){
+  t=0;score=0;plague=0;combo=0;maxCombo=0;cured=0;wrongs=0;
+  spawnT=0.5;queue=[];parts=[];floats=[];
+  stock=[5,5,5,5,5];regen=[0,0,0,0,0];
+  medOrder=[0,1,2,3,4];
+  shake=0;flashRed=0;flashGood=0;recordShown=false;
+  selMed=-1;pendBed=-1;drag=null;hoverBed=-1;
+  sneezeT=0;shuffleT=0;shuffleWarn=0;lastPhase=0;
+  for(var i=0;i<4;i++)beds[i].cat=null;
+}
+
+/* ===== 病貓 ===== */
+function newCat(){
+  var n=symCount();
+  var s=Math.floor(Math.random()*n);
+  var c={sym:s,next:-1,pMax:patienceMax(),p:0,state:'queue',
+         wob:Math.random()*6,leave:0,pop:0,sneeze:0,enter:0};
+  if(Math.random()<mutateChance()){ // 變異貓：要兩劑才治得好
+    var s2=Math.floor(Math.random()*n);
+    if(s2===s)s2=(s2+1)%n;
+    c.next=s2;c.pMax*=1.55;
+  }
+  c.p=c.pMax;
+  return c;
+}
+
+/* ===== 粒子 / 浮字 ===== */
+function burst(x,y,col,n,pw){
+  for(var i=0;i<n;i++){
+    var a=Math.random()*Math.PI*2,sp=(0.5+Math.random())*(pw||110);
+    parts.push({x:x,y:y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-40,
+      life:0.5+Math.random()*0.5,max:1,col:col,r:1.6+Math.random()*3.2});
+  }
+}
+function fl(x,y,txt,col,size){floats.push({x:x,y:y,txt:txt,col:col,life:1,size:size||18});}
+
+/* ===== 施藥核心 ===== */
+function applyMed(mi,bi){
+  var b=beds[bi];
+  if(bi>=bedsActive()||!b.cat||b.cat.state!=='bed'){sEmpty();return;}
+  if(stock[mi]<=0){sEmpty();fl(b.x+BEDW/2,b.y+30,'沒藥了！','#ff9a6a',16);shake=Math.max(shake,3);return;}
+  stock[mi]--;
+  var c=b.cat;
+  if(MED[mi].sym===undefined)MED[mi].sym=mi; // 藥 i 對應症狀 i
+  if(mi===c.sym){
+    stock[mi]=Math.min(6,stock[mi]+1); // 用對藥不耗存量
+    if(c.next>=0){ // 變異貓第一階段
+      c.sym=c.next;c.next=-1;
+      c.p=Math.min(c.pMax,c.p+c.pMax*0.5);
+      c.pop=1;
+      score+=Math.round(45*comboMult());
+      fl(b.x+BEDW/2,b.y+34,'第一劑 OK！','#9ff5c0',15);
+      burst(b.x+BEDW/2,b.y+62,MED[mi].col,26,100);
+      sStage();
+    }else{
+      var ratio=c.p/c.pMax;
+      var pts=Math.round((60+95*ratio)*comboMult());
+      score+=pts;combo++;cured++;
+      if(combo>maxCombo)maxCombo=combo;
+      plague=Math.max(0,plague-2.6);
+      c.state='healed';c.leave=0.5;c.pop=1;
+      fl(b.x+BEDW/2,b.y+30,'+'+pts,'#ffe66a',22);
+      if(combo>=3)fl(b.x+BEDW/2,b.y+56,combo+' 連段 x'+comboMult().toFixed(1),'#7fe6e0',15);
+      burst(b.x+BEDW/2,b.y+62,'#9ff5c0',34,150);
+      burst(b.x+BEDW/2,b.y+62,MED[mi].col,26,110);
+      flashGood=0.3;shake=Math.max(shake,2);
+      sHeal(combo);
+      if(best>0&&score>best&&!recordShown){ // 局中破紀錄慶祝
+        recordShown=true;flashGood=0.9;shake=Math.max(shake,6);
+        fl(200,300,'★ 破紀錄！★','#ffe66a',30);
+        burst(200,300,'#ffe66a',70,220);
+        sRecord();
+      }
+    }
+  }else{
+    // 用錯藥：瘟疫上升 + 傳染隔壁
+    wrongs++;combo=0;plague+=11;
+    c.p=Math.max(0.4,c.p-c.pMax*0.12);
+    for(var i=0;i<bedsActive();i++){
+      if(i===bi)continue;
+      var o=beds[i];
+      if(o.cat&&o.cat.state==='bed'){
+        o.cat.p=Math.max(0.3,o.cat.p-o.cat.pMax*0.22);
+        burst(o.x+BEDW/2,o.y+62,'#88ff88',12,70);
+      }
+    }
+    fl(b.x+BEDW/2,b.y+30,'用錯藥！','#ff6a6a',20);
+    burst(b.x+BEDW/2,b.y+62,'#ff6a6a',26,120);
+    flashRed=0.45;shake=Math.max(shake,9);
+    sWrong();
+  }
+}
+
+/* ===== 更新（固定時間步長）===== */
+function update(dt){
+  // 特效衰減
+  if(shake>0)shake=Math.max(0,shake-dt*26);
+  if(flashRed>0)flashRed=Math.max(0,flashRed-dt*1.6);
+  if(flashGood>0)flashGood=Math.max(0,flashGood-dt*1.6);
+  var i,p;
+  for(i=parts.length-1;i>=0;i--){
+    p=parts[i];p.life-=dt;
+    p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=320*dt;p.vx*=0.98;
+    if(p.life<=0)parts.splice(i,1);
+  }
+  for(i=floats.length-1;i>=0;i--){
+    var f=floats[i];f.life-=dt*1.5;f.y-=32*dt;
+    if(f.life<=0)floats.splice(i,1);
+  }
+  if(state!=='play')return;
+
+  t+=dt;
+
+  // 階段提示（漸進解鎖：看得見的成長）
+  var ph=t<12?0:(t<15?1:(t<38?2:(t<55?3:(t<65?4:(t<75?5:(t<115?6:(t<150?7:8)))))));
+  if(ph>lastPhase){
+    lastPhase=ph;
+    var msg=['','診間開放第 3 床！','新症狀進來了！','新症狀進來了！','出現「變異病貓」：要兩劑！',
+             '新症狀進來了！','診間開放第 4 床！','病貓開始打噴嚏會變症！','藥架會被護士重整！'][ph];
+    if(msg){fl(200,120,msg,'#ffe66a',17);sLevel();}
+  }
+
+  // 藥膏存量回補
+  for(i=0;i<5;i++){
+    regen[i]+=dt;
+    if(regen[i]>=3.4){regen[i]=0;if(stock[i]<6)stock[i]++;}
+  }
+
+  // 生成候診貓
+  spawnT-=dt;
+  if(spawnT<=0){spawnT=spawnGap();if(queue.length<12)queue.push(newCat());}
+
+  // 候診 -> 空床
+  var act=bedsActive();
+  for(i=0;i<act;i++){
+    if(!beds[i].cat&&queue.length){
+      var c=queue.shift();c.state='bed';c.enter=1;beds[i].cat=c;
+    }
+  }
+
+  // 候診塞車壓力（隊列本身就是倒數計時器）
+  if(queue.length>=4)plague+=(queue.length-3)*2.3*dt;
+
+  // 打噴嚏變症事件（有 1.4 秒預警，看得見來得及反應）
+  if(t>=115){
+    sneezeT-=dt;
+    if(sneezeT<=0){
+      sneezeT=8.5;
+      var cand=[];
+      for(i=0;i<act;i++)if(beds[i].cat&&beds[i].cat.state==='bed'&&beds[i].cat.sneeze<=0)cand.push(i);
+      if(cand.length){
+        var bi=cand[Math.floor(Math.random()*cand.length)];
+        beds[bi].cat.sneeze=1.4;sWarn();
+      }
+    }
+  }
+  // 藥架重整（第 3 分鐘新壓力源：打破肌肉記憶）
+  if(t>=150){
+    if(shuffleWarn>0){
+      shuffleWarn-=dt;
+      if(shuffleWarn<=0){
+        for(i=medOrder.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var tmp=medOrder[i];medOrder[i]=medOrder[j];medOrder[j]=tmp;}
+        selMed=-1;drag=null;
+        fl(200,410,'藥架已重整！','#ffe66a',18);
+        burst(200,470,'#ffe66a',30,140);sLevel();
+      }
+    }else{
+      shuffleT-=dt;
+      if(shuffleT<=0){shuffleT=15;shuffleWarn=1.7;sWarn();fl(200,404,'護士要重整藥架…','#ff9a6a',15);}
+    }
+  }
+
+  // 床上病貓
+  for(i=0;i<4;i++){
+    var b=beds[i],cc=b.cat;
+    if(!cc)continue;
+    cc.wob+=dt*(2.4+(1-cc.p/cc.pMax)*4);
+    if(cc.pop>0)cc.pop=Math.max(0,cc.pop-dt*3);
+    if(cc.enter>0)cc.enter=Math.max(0,cc.enter-dt*4);
+    if(cc.state==='bed'){
+      if(cc.sneeze>0){
+        cc.sneeze-=dt;
+        if(cc.sneeze<=0){ // 變症
+          var n=symCount(),ns=Math.floor(Math.random()*n);
+          if(ns===cc.sym)ns=(ns+1)%n;
+          cc.sym=ns;cc.pop=1;
+          burst(b.x+BEDW/2,b.y+58,'#bff5a0',22,110);
+          fl(b.x+BEDW/2,b.y+26,'哈啾！症狀變了','#bff5a0',14);
+          tone(300,900,0.16,'sawtooth',0.13,0);
+        }
+      }
+      cc.p-=dt;
+      if(cc.p<=0){ // 耐心耗盡：瘟疫暴衝 + 傳染
+        cc.state='angry';cc.leave=0.55;
+        combo=0;plague+=15;
+        fl(b.x+BEDW/2,b.y+28,'看診超時！','#ff6a6a',19);
+        burst(b.x+BEDW/2,b.y+60,'#ff6a6a',30,130);
+        for(var k=0;k<bedsActive();k++){
+          if(k===i)continue;
+          var o2=beds[k];
+          if(o2.cat&&o2.cat.state==='bed'){o2.cat.p=Math.max(0.3,o2.cat.p-o2.cat.pMax*0.15);}
+        }
+        flashRed=0.5;shake=Math.max(shake,11);sTimeout();
+      }
+    }else{
+      cc.leave-=dt;
+      if(cc.leave<=0)b.cat=null;
+    }
+  }
+
+  if(plague>=100){plague=100;gameOver();}
+}
+
+function gameOver(){
+  state='over';
+  drag=null;selMed=-1;pendBed=-1;
+  overNear=best-score;
+  if(score>best){best=score;lsSet('mewER_best',String(best));}
+  if(score>dailyBest){dailyBest=score;lsSet('mewER_daily',String(dailyBest));lsSet('mewER_dailyDate',TODAY);}
+  burst(200,300,'#ff6a6a',60,200);
+  shake=14;flashRed=0.8;
+  sOver();
+  if(window.SC)SC.over(score);
+}
+
+/* ===== 繪圖工具 ===== */
+function rr(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+function txt(s,x,y,size,col,align,bold,font){
+  ctx.font=(bold?'bold ':'')+size+'px '+(font||UIF);
+  ctx.fillStyle=col;ctx.textAlign=align||'center';ctx.textBaseline='middle';
+  ctx.fillText(s,x,y);
+}
+/* 史萊姆貓：綠色果凍身體＋貓耳 */
+function slimeCat(x,y,r,col,wob,mood,squash){
+  ctx.save();ctx.translate(x,y);
+  var sq=1+Math.sin(wob)*0.06+(squash||0)*0.22;
+  ctx.fillStyle='rgba(0,0,0,.28)';
+  ctx.beginPath();ctx.ellipse(0,r*0.98,r*0.86,r*0.2,0,0,7);ctx.fill();
+  ctx.fillStyle=col;
+  // 耳朵
+  ctx.beginPath();ctx.moveTo(-r*0.74,-r*0.42);ctx.lineTo(-r*0.5,-r*1.18);ctx.lineTo(-r*0.1,-r*0.6);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.moveTo(r*0.74,-r*0.42);ctx.lineTo(r*0.5,-r*1.18);ctx.lineTo(r*0.1,-r*0.6);ctx.closePath();ctx.fill();
+  // 身體
+  ctx.beginPath();ctx.ellipse(0,0,r*(1/sq),r*0.94*sq,0,0,7);ctx.fill();
+  // 高光
+  ctx.fillStyle='rgba(255,255,255,.32)';
+  ctx.beginPath();ctx.ellipse(-r*0.3,-r*0.36,r*0.24,r*0.14,-0.5,0,7);ctx.fill();
+  // 眼睛
+  ctx.fillStyle='#16241c';
+  if(mood==='happy'){
+    ctx.lineWidth=r*0.11;ctx.strokeStyle='#16241c';
+    ctx.beginPath();ctx.arc(-r*0.32,-r*0.02,r*0.17,Math.PI*1.15,Math.PI*1.95);ctx.stroke();
+    ctx.beginPath();ctx.arc(r*0.32,-r*0.02,r*0.17,Math.PI*1.15,Math.PI*1.95);ctx.stroke();
+  }else if(mood==='angry'){
+    ctx.lineWidth=r*0.11;ctx.strokeStyle='#16241c';
+    ctx.beginPath();ctx.moveTo(-r*0.46,-r*0.16);ctx.lineTo(-r*0.16,r*0.06);
+    ctx.moveTo(-r*0.16,-r*0.16);ctx.lineTo(-r*0.46,r*0.06);
+    ctx.moveTo(r*0.16,-r*0.16);ctx.lineTo(r*0.46,r*0.06);
+    ctx.moveTo(r*0.46,-r*0.16);ctx.lineTo(r*0.16,r*0.06);ctx.stroke();
+  }else{
+    ctx.beginPath();ctx.ellipse(-r*0.3,0,r*0.1,r*0.15,0,0,7);ctx.fill();
+    ctx.beginPath();ctx.ellipse(r*0.3,0,r*0.1,r*0.15,0,0,7);ctx.fill();
+  }
+  // 嘴
+  ctx.strokeStyle='#16241c';ctx.lineWidth=r*0.07;
+  ctx.beginPath();
+  if(mood==='happy'){ctx.arc(0,r*0.24,r*0.16,0.15*Math.PI,0.85*Math.PI);}
+  else if(mood==='angry'){ctx.arc(0,r*0.44,r*0.16,1.15*Math.PI,1.85*Math.PI);}
+  else{ctx.moveTo(-r*0.1,r*0.3);ctx.lineTo(r*0.1,r*0.3);}
+  ctx.stroke();
+  ctx.restore();
+}
+function bubble(x,y,r,emo,alpha,warn){
+  ctx.save();ctx.globalAlpha=alpha===undefined?1:alpha;
+  ctx.fillStyle=warn?'#fff0c0':'#f4fff8';
+  ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();
+  ctx.strokeStyle=warn?'#ffb03a':'rgba(0,0,0,.25)';ctx.lineWidth=warn?3:2;ctx.stroke();
+  txt(emo,x,y+1,r*1.28,'#000','center',false,EMF);
+  ctx.restore();
+}
+
+/* ===== 畫面 ===== */
+function drawBg(){
+  var g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#122029');g.addColorStop(1,'#0a141a');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+}
+function drawHUD(){
+  txt(String(score),16,26,26,'#f2fff6','left',true);
+  txt('最高 '+best,384,20,12,'#7f9aa5','right');
+  txt(fmtT(t),384,38,12,'#7f9aa5','right');
+  if(combo>=2){
+    var s=20+Math.min(combo,15)*0.5;
+    txt('x'+comboMult().toFixed(1)+' 連段 '+combo,200,24,s,'#ffd24a','center',true);
+  }
+  // 噴嚏瘟疫條（唯一輸贏判定、常駐可見）
+  var bx=16,by=50,bw=368,bh=17;
+  ctx.fillStyle='#0a1519';rr(bx,by,bw,bh,8);ctx.fill();
+  var p=Math.max(0,Math.min(100,plague))/100;
+  var col=p<0.5?'#4ad07a':(p<0.78?'#ffc24a':'#ff5a5a');
+  if(p>0){
+    ctx.save();rr(bx,by,bw,bh,8);ctx.clip();
+    ctx.fillStyle=col;ctx.fillRect(bx,by,bw*p,bh);
+    if(p>0.78){ctx.fillStyle='rgba(255,255,255,'+(0.14+0.14*Math.sin(t*14))+')';ctx.fillRect(bx,by,bw*p,bh);}
+    ctx.restore();
+  }
+  ctx.strokeStyle='rgba(255,255,255,.16)';ctx.lineWidth=1.5;rr(bx,by,bw,bh,8);ctx.stroke();
+  txt('噴嚏瘟疫 '+Math.floor(plague)+'%',bx+8,by+bh/2+1,11,p>0.35?'#08131a':'#8fb3bd','left',true);
+}
+function fmtT(s){var m=Math.floor(s/60),ss=Math.floor(s%60);return m+':'+('0'+ss).slice(-2);}
+
+function drawQueue(){
+  txt('候診區',16,88,12,'#7f9aa5','left',true);
+  var crowd=queue.length>=4;
+  if(crowd){
+    ctx.fillStyle='rgba(255,70,70,'+(0.1+0.08*Math.sin(t*10))+')';
+    rr(10,74,380,58,10);ctx.fill();
+    txt('太擠了！瘟疫擴散中',384,88,12,'#ff8a8a','right',true);
+  }
+  var n=Math.min(queue.length,8);
+  for(var i=0;i<n;i++){
+    var x=32+i*44,y=112;
+    var c=queue[i];
+    slimeCat(x,y,13,'#5fc47c',t*2+i,'sick',0);
+    bubble(x+13,y-13,9,SYM[c.sym].emo,0.95,false);
+  }
+  if(queue.length>8)txt('+'+(queue.length-8),32+8*44,112,14,'#ff9a6a','left',true);
+  if(queue.length===0)txt('目前沒有貓在排隊 ✓',200,112,13,'#4b6670','center');
+}
+
+function drawBeds(){
+  var act=bedsActive();
+  for(var i=0;i<4;i++){
+    var b=beds[i],on=i<act;
+    var hov=(hoverBed===i||pendBed===i)&&on;
+    ctx.fillStyle=on?'#182a31':'#101b20';
+    rr(b.x,b.y,BEDW,BEDH,12);ctx.fill();
+    ctx.strokeStyle=hov?'#8fe3b0':(on?'rgba(255,255,255,.10)':'rgba(255,255,255,.05)');
+    ctx.lineWidth=hov?3:1.5;rr(b.x,b.y,BEDW,BEDH,12);ctx.stroke();
+    txt(b.key,b.x+BEDW-10,b.y+12,10,'rgba(255,255,255,.22)','right',true);
+    if(!on){txt('整修中',b.x+BEDW/2,b.y+BEDH/2,14,'#2e444c','center',true);continue;}
+    var c=b.cat;
+    if(!c){txt('空床',b.x+BEDW/2,b.y+BEDH/2,13,'#33505a','center');continue;}
+    var cx=b.x+58,cy=b.y+62;
+    var mood=c.state==='healed'?'happy':(c.state==='angry'?'angry':'sick');
+    var col=c.state==='healed'?'#8ef7a8':(c.state==='angry'?'#c9d16a':'#6fd98d');
+    var ent=c.enter>0?(1-c.enter)*0.4:0;
+    slimeCat(cx,cy+(c.enter>0?-c.enter*24:0),30,col,c.wob,mood,c.pop*0.5-ent*0.2);
+    if(c.state==='bed'){
+      // 症狀泡泡（變異貓兩顆＝兩步驟）
+      var warn=c.sneeze>0&&Math.sin(c.sneeze*26)>0;
+      bubble(b.x+128,b.y+38,20,SYM[c.sym].emo,1,warn);
+      if(c.next>=0){
+        ctx.globalAlpha=0.55;
+        bubble(b.x+158,b.y+70,14,SYM[c.next].emo,1,false);
+        ctx.globalAlpha=1;
+        txt('變異',b.x+128,b.y+64,10,'#ffb03a','center',true);
+      }
+      // 耐心條
+      var r2=Math.max(0,c.p/c.pMax);
+      var pw=BEDW-24;
+      ctx.fillStyle='#0c1a1f';rr(b.x+12,b.y+BEDH-16,pw,7,4);ctx.fill();
+      ctx.fillStyle=r2>0.5?'#4ad07a':(r2>0.25?'#ffc24a':'#ff5a5a');
+      if(r2>0){rr(b.x+12,b.y+BEDH-16,pw*r2,7,4);ctx.fill();}
+      if(r2<0.25){
+        ctx.fillStyle='rgba(255,90,90,'+(0.1+0.1*Math.sin(t*18))+')';
+        rr(b.x,b.y,BEDW,BEDH,12);ctx.fill();
+      }
+    }else if(c.state==='healed'){
+      txt('❤️',b.x+128,b.y+42,26,'#fff','center',false,EMF);
+      txt('治好了！',b.x+128,b.y+72,13,'#9ff5c0','center',true);
+    }else{
+      txt('💢',b.x+128,b.y+42,24,'#fff','center',false,EMF);
+      txt('生氣走人',b.x+128,b.y+72,13,'#ff8a8a','center',true);
+    }
+  }
+}
+
+function drawShelf(){
+  var tut=t<24&&state==='play'; // 前 24 秒放大對照提示（首關保護）
+  txt('藥櫃（拖到病貓身上，或先點藥再點床）',200,408,11,'#7f9aa5','center');
+  if(shuffleWarn>0)txt('藥架重整中… '+shuffleWarn.toFixed(1),200,408,12,'#ffb03a','center',true);
+  for(var i=0;i<5;i++){
+    var m=medOrder[i],md=MED[m],r=bottleRect(i);
+    var sel=(selMed===m);
+    var wobx=shuffleWarn>0?Math.sin(t*30+i)*3:0;
+    ctx.save();ctx.translate(wobx,0);
+    ctx.fillStyle=stock[m]>0?md.dark:'#20292c';
+    rr(r.x,r.y,r.w,r.h,10);ctx.fill();
+    ctx.fillStyle=stock[m]>0?md.col:'#39474b';
+    rr(r.x+5,r.y+22,r.w-10,r.h-30,8);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.22)';
+    rr(r.x+10,r.y+28,10,r.h-46,5);ctx.fill();
+    ctx.strokeStyle=sel?'#ffffff':'rgba(0,0,0,.35)';ctx.lineWidth=sel?3.5:1.5;
+    rr(r.x,r.y,r.w,r.h,10);ctx.stroke();
+    txt(String(i+1),r.x+8,r.y+11,10,'rgba(255,255,255,.55)','left',true);
+    txt(md.emo,r.x+r.w/2,r.y+52,26,'#fff','center',false,EMF);
+    // 對應症狀（教學期放大、之後縮小）
+    txt(SYM[m].emo,r.x+r.w/2,r.y+80,tut?21:11,'#fff','center',false,EMF);
+    txt(md.name,r.x+r.w/2,r.y+98,10,'rgba(255,255,255,.85)','center',true);
+    // 存量點
+    for(var k=0;k<6;k++){
+      ctx.beginPath();ctx.arc(r.x+11+k*9.6,r.y+r.h-9,3,0,7);
+      ctx.fillStyle=k<stock[m]?'#f2fff6':'rgba(255,255,255,.16)';ctx.fill();
+    }
+    ctx.restore();
+  }
+  if(tut)txt('提示：瓶身下方小圖＝這瓶治哪種症狀',200,566,12,'#8fe3b0','center',true);
+  else if(selMed>=0)txt('已拿起「'+MED[selMed].name+'」→ 點一張病床施藥',200,566,12,'#8fe3b0','center',true);
+  else if(pendBed>=0)txt('已選床位 '+beds[pendBed].key+' → 按 1~5 選藥',200,566,12,'#8fe3b0','center',true);
+  else txt('用錯藥會傳染隔壁貓，瘟疫直接飆升',200,566,11,'#5d7681','center');
+}
+
+function drawFx(){
+  var i;
+  for(i=0;i<parts.length;i++){
+    var p=parts[i];
+    ctx.globalAlpha=Math.max(0,Math.min(1,p.life));
+    ctx.fillStyle=p.col;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  for(i=0;i<floats.length;i++){
+    var f=floats[i];
+    ctx.globalAlpha=Math.max(0,Math.min(1,f.life));
+    txt(f.txt,f.x,f.y,f.size*(1+(1-f.life)*0.18),f.col,'center',true);
+  }
+  ctx.globalAlpha=1;
+  if(flashRed>0){ctx.fillStyle='rgba(255,40,40,'+(flashRed*0.4)+')';ctx.fillRect(0,0,W,H);}
+  if(flashGood>0){ctx.fillStyle='rgba(150,255,190,'+(flashGood*0.22)+')';ctx.fillRect(0,0,W,H);}
+  if(state==='play'&&plague>72){ // 高壓時的紅暈警告
+    var a=(plague-72)/28*0.4*(0.7+0.3*Math.sin(t*9));
+    var g=ctx.createRadialGradient(200,300,120,200,300,330);
+    g.addColorStop(0,'rgba(255,0,0,0)');g.addColorStop(1,'rgba(255,0,0,'+a.toFixed(3)+')');
+    ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  }
+}
+
+function drawTitle(){
+  txt('🐾',200,58,44,'#fff','center',false,EMF);
+  txt('喵爪急診室',200,110,36,'#9ff5c0','center',true);
+  txt('把「對的藥膏」拖給「對的病貓」，別讓噴嚏瘟疫爆表！',200,142,13,'#cfe9df','center');
+  txt('── 藥典對照（開場 24 秒會放大提示）──',200,170,12,'#7f9aa5','center');
+  for(var i=0;i<5;i++){
+    var y=196+i*30;
+    ctx.fillStyle='rgba(255,255,255,.05)';rr(52,y-13,296,26,8);ctx.fill();
+    txt(SYM[i].emo,74,y,20,'#fff','center',false,EMF);
+    txt(SYM[i].name,120,y,14,'#e8f6ef','left',true);
+    txt('→',186,y,14,'#7f9aa5','center');
+    txt(MED[i].emo,216,y,19,'#fff','center',false,EMF);
+    txt(MED[i].name,240,y,14,MED[i].col,'left',true);
+  }
+  txt('手機：拖藥瓶到病床，或先點藥再點床',200,364,13,'#cfe9df','center');
+  txt('鍵盤：1~5 選藥膏，Q W E R 選病床',200,386,13,'#cfe9df','center');
+  txt('治好 = 分數＋連段；用錯 = 瘟疫上升還會傳染',200,412,12,'#ff9a6a','center');
+  txt('看診超時、候診塞車 → 瘟疫也會漲',200,432,12,'#ff9a6a','center');
+  ctx.fillStyle='rgba(255,255,255,.05)';rr(60,452,280,54,10);ctx.fill();
+  txt('歷史最高 '+best+'　今日最佳 '+dailyBest,200,470,14,'#ffd24a','center',true);
+  txt(streak>0?('已連續看診 '+streak+' 天，明天再來守住紀錄！'):'今天第一次上工，先立個紀錄吧！',200,492,12,'#8fe3b0','center');
+  var a=0.65+0.35*Math.sin(titlePulse*4);
+  ctx.globalAlpha=a;
+  txt('▶ 點一下開始看診',200,540,24,'#9ff5c0','center',true);
+  ctx.globalAlpha=1;
+  txt('一局約 1~3 分鐘・死了一鍵重來',200,572,11,'#5d7681','center');
+}
+
+function drawOver(){
+  ctx.fillStyle='rgba(4,10,14,.82)';ctx.fillRect(0,0,W,H);
+  txt('🏥 急診室淪陷',200,116,30,'#ff8a8a','center',true);
+  txt('噴嚏瘟疫 100%',200,148,14,'#cfe9df','center');
+  txt(String(score),200,206,58,'#ffe66a','center',true);
+  txt('分',200,246,14,'#7f9aa5','center');
+  // near-miss：把失敗包裝成邀請
+  if(overNear<0||score>=best){
+    txt('★ 新紀錄！★',200,286,26,'#9ff5c0','center',true);
+    txt('你就是本院最強院長',200,314,13,'#cfe9df','center');
+  }else{
+    txt('差 '+(overNear+1)+' 分就破紀錄！',200,286,22,'#ffb03a','center',true);
+    txt('目前紀錄 '+best+'　再一局就追上了',200,314,13,'#cfe9df','center');
+  }
+  ctx.fillStyle='rgba(255,255,255,.06)';rr(56,338,288,104,10);ctx.fill();
+  txt('看診時間',96,360,12,'#7f9aa5','center');txt(fmtT(t),96,382,18,'#e8f6ef','center',true);
+  txt('治好貓數',200,360,12,'#7f9aa5','center');txt(String(cured),200,382,18,'#e8f6ef','center',true);
+  txt('最高連段',304,360,12,'#7f9aa5','center');txt(String(maxCombo),304,382,18,'#e8f6ef','center',true);
+  txt('用錯藥 '+wrongs+' 次　今日最佳 '+dailyBest,200,418,12,'#8fe3b0','center');
+  var a=0.6+0.4*Math.sin(titlePulse*5);
+  ctx.globalAlpha=a;
+  txt('▶ 點一下馬上再來一局',200,486,24,'#9ff5c0','center',true);
+  ctx.globalAlpha=1;
+  txt('（鍵盤按空白鍵也可以）',200,514,12,'#5d7681','center');
+  txt(streak>0?('連續看診 '+streak+' 天・明天回來別斷了'):'明天回來看看還守不守得住紀錄',200,548,12,'#7f9aa5','center');
+}
+
+function draw(){
+  ctx.save();
+  if(shake>0){ctx.translate((Math.random()-0.5)*shake,(Math.random()-0.5)*shake);}
+  drawBg();
+  if(state==='title'){drawTitle();drawFx();ctx.restore();return;}
+  drawHUD();drawQueue();drawBeds();drawShelf();
+  // 拖曳中的藥瓶幽靈
+  if(drag&&drag.moved){
+    var md=MED[drag.med];
+    ctx.save();ctx.globalAlpha=0.92;
+    ctx.fillStyle=md.dark;rr(drag.x-26,drag.y-34,52,68,9);ctx.fill();
+    ctx.fillStyle=md.col;rr(drag.x-22,drag.y-18,44,48,7);ctx.fill();
+    txt(md.emo,drag.x,drag.y+4,22,'#fff','center',false,EMF);
+    ctx.restore();
+  }
+  drawFx();
+  if(state==='over')drawOver();
+  ctx.restore();
+}
+
+/* ===== 輸入 ===== */
+function hitBottle(x,y){
+  for(var i=0;i<5;i++){
+    var r=bottleRect(i);
+    if(x>=r.x-3&&x<=r.x+r.w+3&&y>=r.y-6&&y<=r.y+r.h+6)return i;
+  }
+  return -1;
+}
+function hitBed(x,y){
+  for(var i=0;i<bedsActive();i++){
+    var b=beds[i];
+    if(x>=b.x&&x<=b.x+BEDW&&y>=b.y&&y<=b.y+BEDH)return i;
+  }
+  return -1;
+}
+function startGame(){
+  touchStreak();reset();state='play';sStart();
+  fl(200,300,'開始看診！','#9ff5c0',24);
+}
+function onDown(e){
+  ac();
+  var p=toLogic(e);
+  if(state==='title'){startGame();return;}
+  if(state==='over'){startGame();return;}
+  var bi=hitBottle(p.x,p.y);
+  if(bi>=0){
+    var m=medOrder[bi];
+    drag={med:m,x:p.x,y:p.y,sx:p.x,sy:p.y,moved:false};
+    sPick();
+    return;
+  }
+  var bd=hitBed(p.x,p.y);
+  if(bd>=0){
+    if(selMed>=0){applyMed(selMed,bd);selMed=-1;pendBed=-1;}
+    else{pendBed=(pendBed===bd?-1:bd);sPick();}
+  }else{selMed=-1;pendBed=-1;}
+}
+function onMove(e){
+  if(state!=='play')return;
+  var p=toLogic(e);
+  if(drag){
+    drag.x=p.x;drag.y=p.y;
+    if(!drag.moved&&Math.abs(p.x-drag.sx)+Math.abs(p.y-drag.sy)>9)drag.moved=true;
+    hoverBed=drag.moved?hitBed(p.x,p.y):-1;
+  }
+}
+function onUp(e){
+  if(state!=='play'){drag=null;hoverBed=-1;return;}
+  if(drag){
+    var p=toLogic(e);
+    if(drag.moved){
+      var bd=hitBed(p.x,p.y);
+      if(bd>=0){applyMed(drag.med,bd);selMed=-1;pendBed=-1;}
+    }else{
+      // 沒拖動＝點選模式
+      if(pendBed>=0){applyMed(drag.med,pendBed);pendBed=-1;selMed=-1;}
+      else selMed=(selMed===drag.med?-1:drag.med);
+    }
+  }
+  drag=null;hoverBed=-1;
+}
+function clearInput(){drag=null;hoverBed=-1;selMed=-1;pendBed=-1;}
+cv.addEventListener('pointerdown',function(e){e.preventDefault();onDown(e);});
+cv.addEventListener('pointermove',function(e){e.preventDefault();onMove(e);});
+cv.addEventListener('pointerup',function(e){e.preventDefault();onUp(e);});
+cv.addEventListener('pointercancel',function(e){e.preventDefault();clearInput();});
+cv.addEventListener('pointerleave',function(){if(drag&&!drag.moved)clearInput();});
+window.addEventListener('blur',clearInput);
+document.addEventListener('visibilitychange',function(){if(document.hidden)clearInput();});
+cv.addEventListener('contextmenu',function(e){e.preventDefault();});
+
+window.addEventListener('keydown',function(e){
+  var k=e.key?e.key.toLowerCase():'';
+  if(k===' '||k==='enter'){
+    e.preventDefault();
+    if(state!=='play'){ac();startGame();}
+    return;
+  }
+  if(state!=='play')return;
+  if(k>='1'&&k<='5'){
+    e.preventDefault();
+    var m=medOrder[parseInt(k,10)-1];
+    if(pendBed>=0){applyMed(m,pendBed);pendBed=-1;selMed=-1;}
+    else{selMed=(selMed===m?-1:m);sPick();}
+    return;
+  }
+  var bi='qwer'.indexOf(k);
+  if(bi>=0){
+    e.preventDefault();
+    if(bi>=bedsActive())return;
+    if(selMed>=0){applyMed(selMed,bi);selMed=-1;pendBed=-1;}
+    else{pendBed=(pendBed===bi?-1:bi);sPick();}
+  }
+});
+
+/* ===== 主迴圈：固定時間步長，不假設 60fps ===== */
+var last=0,acc=0,STEP=1/60;
+function frame(ts){
+  requestAnimationFrame(frame);
+  try{
+    if(!last)last=ts;
+    var dt=(ts-last)/1000;last=ts;
+    if(!isFinite(dt)||dt<0)dt=0;
+    if(dt>0.25)dt=0.25;
+    titlePulse+=dt;
+    acc+=dt;
+    var guard=0;
+    while(acc>=STEP&&guard<6){update(STEP);acc-=STEP;guard++;}
+    if(guard>=6)acc=0;
+    draw();
+  }catch(err){/* 保護主迴圈不中斷 */}
+}
+requestAnimationFrame(frame);
+})();
+</script>
+<script src="../../sc_config.js"></script>
+<script src="../../stats.js"></script>
+</body>
+</html>
