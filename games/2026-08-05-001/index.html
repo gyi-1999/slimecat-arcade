@@ -1,0 +1,803 @@
+<!--GAMEMETA {"title":"喵探線索鋪","emoji":"🔍","genre":"合成解謎","inspiration":"緋聞港口：合併&故事","desc":"放線索三個同款就合併，湊齊八條線索破案"}-->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>喵探線索鋪</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%;background:#080b14;overflow:hidden;
+  font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,sans-serif}
+#wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+canvas{display:block;touch-action:none;border-radius:14px;box-shadow:0 12px 44px rgba(0,0,0,.65)}
+#back{position:fixed;left:8px;top:6px;z-index:5;color:#9fe0c2;font-size:13px;text-decoration:none;
+  background:rgba(0,0,0,.5);padding:5px 10px;border-radius:12px}
+</style>
+</head>
+<body>
+<a id="back" href="../../index.html">← 回遊戲區</a>
+<div id="wrap"><canvas id="cv"></canvas></div>
+<script>
+(function(){
+'use strict';
+/* ===== 喵探線索鋪：放置式三連合併 + 線索收集 =====
+   核心迴圈：放下線索 → 三個同款自動合併升階 → 連鎖爆分 → 解鎖劇情線索碎片
+   回合制、無時間逼迫，每一次放置都是一個決策（決策密度高）           */
+
+/* ---------- 基本常數 ---------- */
+var W=400,H=600,COLS=5,ROWS=6,N=30,CELL=68,GAP=5,BX=20,BY=112;
+var BW=COLS*(CELL+GAP)-GAP, BH=ROWS*(CELL+GAP)-GAP;   // 360 x 433
+var FONT='"Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,sans-serif';
+var EFONT='"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
+
+/* 八階線索道具（史萊姆貓辦案雜貨） */
+var TIERS=[
+ {e:'🧶',n:'毛線團',c:'#3f5f96'},
+ {e:'🐟',n:'魚乾屑',c:'#2f8a86'},
+ {e:'🐾',n:'爪印',c:'#4f9c46'},
+ {e:'🔍',n:'放大鏡',c:'#a8862c'},
+ {e:'📜',n:'密報',c:'#a95f2c'},
+ {e:'🔑',n:'銅鑰匙',c:'#9d4230'},
+ {e:'🎩',n:'偵探帽',c:'#71359a'},
+ {e:'🏆',n:'破案獎章',c:'#c39c22'}
+];
+var MAXT=TIERS.length-1;
+
+/* 八條線索碎片（好奇心缺口，最後一條是真相） */
+var CLUES=[
+ '魚乾罐子昨晚少了三塊。門明明是鎖著的，喵。',
+ '牆邊一排濕爪印，尺寸偏小，走得很急。',
+ '毛線團被拆成一團亂——兇手手很閒。',
+ '窗台留下一撮橘毛，不是本店任何員工的顏色。',
+ '隔壁阿虎說牠整晚在睡，可是眼神一直在飄。',
+ '倉庫鑰匙還掛在原位，所以是內部人士下的手。',
+ '碎屑一路灑向店後方那個綠綠、軟軟的窩……',
+ '真相：是我自己半夜夢遊吃掉的。全員解散，結案喵。'
+];
+var LINES=['合起來了喵。','這條線索有味道。','筆記本先記一下。','證物袋快不夠用了。',
+ '等等，這爪印…','案情越來越香了。','我好像想到什麼了。'];
+var TAUNT=['再一局就翻案了喵。','兇手還在笑你喵。','差一步而已，重來！','這次一定湊到獎章。'];
+
+/* ---------- Canvas 與高解析度縮放 ---------- */
+var cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+var vscale=1,dpr=1;
+function resize(){
+  var vw=window.innerWidth||W, vh=window.innerHeight||H;
+  vscale=Math.min(vw/W, vh/H);
+  if(!(vscale>0)) vscale=1;
+  dpr=Math.min(window.devicePixelRatio||1,3);
+  cv.style.width=(W*vscale)+'px'; cv.style.height=(H*vscale)+'px';
+  cv.width=Math.round(W*vscale*dpr); cv.height=Math.round(H*vscale*dpr);
+  ctx.setTransform(vscale*dpr,0,0,vscale*dpr,0,0);   // 邏輯座標維持 400x600
+  ctx.textBaseline='middle';
+}
+window.addEventListener('resize',resize);
+window.addEventListener('orientationchange',resize);
+resize();
+
+/* ---------- WebAudio 合成音效 ---------- */
+var AC=null;
+function actx(){
+  if(AC===null){ try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ AC=false; } }
+  return AC||null;
+}
+function resumeAudio(){ var a=actx(); if(a&&a.state==='suspended'){ try{a.resume();}catch(e){} } }
+function beep(f,d,type,vol,delay,f2){
+  var a=actx(); if(!a) return;
+  try{
+    var t0=a.currentTime+(delay||0);
+    var o=a.createOscillator(), g=a.createGain();
+    o.type=type||'sine'; o.frequency.setValueAtTime(f,t0);
+    if(f2) o.frequency.exponentialRampToValueAtTime(Math.max(20,f2),t0+d);
+    g.gain.setValueAtTime(0.0001,t0);
+    g.gain.exponentialRampToValueAtTime(vol||0.08,t0+0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001,t0+d);
+    o.connect(g); g.connect(a.destination);
+    o.start(t0); o.stop(t0+d+0.05);
+  }catch(e){}
+}
+function sc(s){ return Math.pow(2,s/12); }
+var sfx={
+ place:function(){ beep(320,0.07,'triangle',0.07,0,220); },
+ merge:function(t,c){ var f=300*sc(t*2+(c-1)*3); beep(f,0.15,'sine',0.10); beep(f*1.5,0.10,'triangle',0.05,0.03); },
+ rat:function(){ beep(950,0.07,'sawtooth',0.05,0,1500); beep(1200,0.05,'sawtooth',0.04,0.07,900); },
+ ratClear:function(){ for(var i=0;i<3;i++) beep(440*sc(i*2),0.12,'square',0.05,i*0.05); },
+ order:function(){ var s=[0,4,7,12]; for(var i=0;i<4;i++) beep(392*sc(s[i]),0.20,'sine',0.09,i*0.08); },
+ clue:function(){ beep(880,0.26,'sine',0.07); beep(1320,0.30,'triangle',0.04,0.06); },
+ gift:function(){ var s=[0,5,9,14]; for(var i=0;i<4;i++) beep(523*sc(s[i]),0.16,'triangle',0.07,i*0.05); },
+ broom:function(){ beep(1600,0.08,'square',0.045,0,600); beep(900,0.09,'square',0.03,0.05,300); },
+ bad:function(){ beep(150,0.10,'square',0.05,0,110); },
+ warn:function(){ beep(230,0.30,'sawtooth',0.05,0,175); },
+ over:function(){ var s=[0,-3,-7,-12]; for(var i=0;i<4;i++) beep(330*sc(s[i]),0.36,'triangle',0.09,i*0.14); },
+ record:function(){ var s=[0,4,7,12,16,19]; for(var i=0;i<6;i++) beep(523*sc(s[i]),0.30,'sine',0.10,i*0.09); },
+ jackpot:function(){ var s=[0,7,12,19,24]; for(var i=0;i<5;i++) beep(392*sc(s[i]),0.42,'sine',0.11,i*0.07); },
+ tick:function(){ beep(700,0.04,'square',0.04); }
+};
+
+/* ---------- localStorage（最高分／線索牆／連續來訪） ---------- */
+function lsGet(k,d){ try{ var v=localStorage.getItem(k); return v===null?d:v; }catch(e){ return d; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+var best=parseInt(lsGet('mtx_best','0'),10)||0;
+var wall=parseInt(lsGet('mtx_wall','0'),10)||0;   // 線索牆：歷史最多解鎖數
+var streak=1;
+(function(){
+  try{
+    var d=new Date();
+    function key(x){ return x.getFullYear()+'-'+(x.getMonth()+1)+'-'+x.getDate(); }
+    var today=key(d), yest=key(new Date(d.getTime()-864e5));
+    var last=lsGet('mtx_last',''), st=parseInt(lsGet('mtx_streak','0'),10)||0;
+    if(last===today) streak=Math.max(1,st);
+    else if(last===yest) streak=st+1;
+    else streak=1;
+    lsSet('mtx_last',today); lsSet('mtx_streak',String(streak));
+  }catch(e){ streak=1; }
+})();
+
+/* ---------- 遊戲狀態 ---------- */
+var grid=new Array(N), queue=[], order=null;
+var score=0,disp=0,brooms=1,clues=0,maxTier=0,turn=0,ordersDone=0;
+var mode='title', ratsMove=false, junkTurn=42, warnedLow=false;
+var time=0, shake=0, broomMode=false, kb=false, cur=12;
+var parts=[],floats=[],ghosts=[],timers=[],cardQ=[],card=null,toast=null;
+var overInfo=null, recFx=0, truth=false;
+
+function after(t,fn){ timers.push({t:t,fn:fn}); }
+function empties(){ var n=0; for(var i=0;i<N;i++) if(!grid[i]) n++; return n; }
+function cxp(i){ return BX+(i%COLS)*(CELL+GAP); }
+function cyp(i){ return BY+((i/COLS)|0)*(CELL+GAP); }
+function nbs(i){ var x=i%COLS,y=(i/COLS)|0,r=[];
+  if(x>0)r.push(i-1); if(x<COLS-1)r.push(i+1); if(y>0)r.push(i-COLS); if(y<ROWS-1)r.push(i+COLS); return r; }
+function same(a,b){ if(!a||!b) return false; if(a.kind!==b.kind) return false;
+  if(a.kind==='rat') return true; return a.tier===b.tier; }
+function flood(i){
+  var c=grid[i]; if(!c) return [];
+  var seen={},st=[i],out=[]; seen[i]=1;
+  while(st.length){
+    var k=st.pop(); out.push(k);
+    var nb=nbs(k);
+    for(var j=0;j<nb.length;j++){ var q=nb[j]; if(!seen[q]&&same(grid[q],c)){ seen[q]=1; st.push(q); } }
+  }
+  return out;
+}
+
+/* ---------- 生成器（難度隨回合遞增） ---------- */
+function genQ(){
+  var t=turn;
+  if(t>=12 && Math.random()<0.07) return {kind:'gift'};                                  // 神秘箱：變動比例獎勵
+  if(t>=18 && Math.random()<Math.min(0.18,0.05+(t-18)*0.006)) return {kind:'rat'};       // 老鼠：佔位壓力
+  var p2 = t<10?0.34 : (t<25?0.24 : (t<45?0.15:0.09));   // 後期二階變少 → 需要更多格子
+  return {kind:'item',tier: Math.random()<p2?1:0};
+}
+
+/* ---------- 委託（目標梯度效應） ---------- */
+function newOrder(){
+  var tb=[{tier:2,need:3},{tier:3,need:2},{tier:2,need:5},{tier:3,need:3},
+          {tier:4,need:1},{tier:3,need:4},{tier:4,need:2},{tier:5,need:1}];
+  var d=ordersDone, o;
+  if(d<tb.length) o=tb[d];
+  else o={tier:3+(d%3), need:2+((d-tb.length)%3)};
+  order={tier:o.tier,need:o.need,have:0};
+}
+
+/* ---------- 特效 ---------- */
+function burst(x,y,col,n){
+  for(var i=0;i<n;i++){
+    var a=Math.random()*Math.PI*2, s=40+Math.random()*180;
+    parts.push({x:x,y:y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-40,l:0.5+Math.random()*0.5,m:0.5+Math.random()*0.5,c:col,r:1.5+Math.random()*3});
+  }
+}
+function addFloat(x,y,txt,col,sz){ floats.push({x:x,y:y,t:txt,c:col,s:sz||16,l:1.1,m:1.1}); }
+function addGhost(i,c,delay){ if(!c) return; ghosts.push({x:cxp(i)+(c.ox||0),y:cyp(i)+(c.oy||0),c:c,t:-(delay||0)}); }
+function toastMsg(t){ toast={txt:t,l:2.0}; }
+function sayLine(){ toastMsg(LINES[(Math.random()*LINES.length)|0]); }
+
+/* ---------- 連鎖合併核心 ---------- */
+function resolveFrom(i){
+  var combo=0;
+  for(var guard=0;guard<48;guard++){
+    var c=grid[i]; if(!c) break;
+    var g=flood(i); if(g.length<3) break;
+    combo++;
+    var delay=(combo-1)*0.11, k;
+    var px=cxp(i)+CELL/2, py=cyp(i)+CELL/2;
+    for(k=0;k<g.length;k++){ if(g[k]!==i){ addGhost(g[k],grid[g[k]],delay); grid[g[k]]=null; } }
+
+    if(c.kind==='rat'){                        // 三隻老鼠 → 抓走，清出空間
+      addGhost(i,c,delay); grid[i]=null;
+      (function(gain,x,y){ after(delay,function(){
+        score+=gain; burst(x,y,'#f2d16b',20); addFloat(x,y,'🧀 抓到了 +'+gain,'#ffe9a8',18);
+        sfx.ratClear(); shake=Math.max(shake,5);
+      }); })(90*combo,px,py);
+      break;
+    }
+    var nt=c.tier+1;
+    if(nt>MAXT){                               // 三個獎章 → 結案大賞
+      addGhost(i,c,delay); grid[i]=null;
+      (function(gain,x,y){ after(delay,function(){
+        score+=gain; burst(x,y,'#ffd94a',48); addFloat(x,y,'結案大賞 +'+gain,'#ffe9a8',20);
+        sfx.jackpot(); shake=12; recFx=Math.max(recFx,1.4);
+      }); })(3000*combo,px,py);
+      break;
+    }
+    grid[i]={kind:'item',tier:nt,born:time+delay,ox:0,oy:0};
+    (function(nt,gain,cb,x,y){ after(delay,function(){
+      score+=gain;
+      burst(x,y,TIERS[nt].c,10+nt*4);
+      addFloat(x,y-8,'+'+gain,'#eafff0',cb>1?20:17);
+      if(cb>1) addFloat(x,y-32,'連鎖 x'+cb+'！','#ffd479',19);
+      sfx.merge(nt,cb); shake=Math.max(shake,2+nt*0.9);
+      if(order&&order.tier===nt){ order.have++; if(order.have>=order.need) completeOrder(); }
+      if(nt>maxTier){ maxTier=nt; if(nt>=3) unlockClue(); }
+      if(Math.random()<0.20) sayLine();
+    }); })(nt, Math.round(12*Math.pow(2.15,nt))*combo, combo, px, py);
+  }
+}
+
+function completeOrder(){
+  var bonus=180+ordersDone*90;
+  ordersDone++; score+=bonus;
+  addFloat(200,300,'委託完成！+'+bonus,'#8ef0b0',24);
+  burst(200,86,'#8ef0b0',26);
+  sfx.order(); shake=Math.max(shake,7);
+  if(brooms<3 && ordersDone%2===1){ brooms++; addFloat(324,536,'🧹 +1','#ffe9a8',18); }
+  unlockClue(); newOrder();
+}
+
+function unlockClue(){
+  if(clues>=CLUES.length) return;
+  clues++;
+  if(clues>wall){ wall=clues; lsSet('mtx_wall',String(wall)); }
+  if(clues===CLUES.length){ truth=true; score+=2500; recFx=Math.max(recFx,2.0); }
+  cardQ.push(clues); sfx.clue();
+}
+
+/* ---------- 放置 / 掃帚 ---------- */
+function place(i){
+  if(mode!=='play'||card) return;
+  if(broomMode){
+    if(grid[i]){
+      addGhost(i,grid[i],0); grid[i]=null; brooms--; broomMode=false;
+      sfx.broom(); burst(cxp(i)+CELL/2,cyp(i)+CELL/2,'#bcd9ff',16);
+      addFloat(cxp(i)+CELL/2,cyp(i)+CELL/2,'清掉了','#bcd9ff',16);
+    }else{ broomMode=false; sfx.bad(); }
+    return;                                   // 掃帚不消耗回合
+  }
+  if(grid[i]){
+    sfx.bad(); shake=Math.max(shake,3);
+    addFloat(cxp(i)+CELL/2,cyp(i)+CELL/2,'有東西了','#ff9d9d',14);
+    return;
+  }
+  var q=queue.shift(); queue.push(genQ());
+  if(q.kind==='gift') openGift(i);
+  else if(q.kind==='rat'){
+    grid[i]={kind:'rat',born:time,ox:0,oy:0}; sfx.rat();
+    burst(cxp(i)+CELL/2,cyp(i)+CELL/2,'#8a8fa3',8);
+  }else{
+    grid[i]={kind:'item',tier:q.tier,born:time,ox:0,oy:0}; sfx.place();
+    burst(cxp(i)+CELL/2,cyp(i)+CELL/2,TIERS[q.tier].c,6);
+  }
+  resolveFrom(i);
+  endTurn();
+}
+
+function openGift(i){
+  var r=Math.random(), px=cxp(i)+CELL/2, py=cyp(i)+CELL/2;
+  sfx.gift(); burst(px,py,'#ffd479',30);
+  if(r<0.20 && brooms<3){ brooms++; addFloat(px,py,'神秘箱：🧹 +1','#ffe9a8',17); return; }
+  if(r<0.28){
+    var n=0;
+    for(var k=0;k<N;k++) if(grid[k]&&grid[k].kind==='rat'){ addGhost(k,grid[k],0.02*n); grid[k]=null; n++; }
+    score+=120*n+60;
+    addFloat(px,py,n?('神秘箱：趕走 '+n+' 隻老鼠'):'神秘箱：+60','#bcd9ff',17);
+    return;
+  }
+  var t = r<0.62?2:(r<0.88?3:4);
+  grid[i]={kind:'item',tier:t,born:time,ox:0,oy:0};
+  addFloat(px,py-30,'神秘箱：'+TIERS[t].e,'#ffe9a8',17);
+}
+
+/* ---------- 回合結算（第 3 分鐘的新壓力源都在這） ---------- */
+function endTurn(){
+  turn++;
+  if(!ratsMove && turn>=30){ ratsMove=true; toastMsg('🐭 老鼠開始亂跑了！'); }      // 壓力源一
+  if(ratsMove && turn%3===0) after(0.34,moveRats);
+  if(turn===junkTurn){                                                            // 壓力源二：有人亂丟
+    after(0.42,dropJunk);
+    junkTurn += Math.max(6,10-Math.floor((turn-42)/20));
+  }
+  var e=empties();
+  if(e<=4 && !warnedLow){ warnedLow=true; sfx.warn(); }
+  if(e>6) warnedLow=false;
+  after(0.5,checkOver);
+}
+function moveRats(){
+  if(mode!=='play') return;
+  var list=[];
+  for(var i=0;i<N;i++) if(grid[i]&&grid[i].kind==='rat') list.push(i);
+  for(var a=0;a<list.length;a++){
+    var i2=list[a], nb=nbs(i2).filter(function(k){ return !grid[k]; });
+    if(!nb.length) continue;
+    var k2=nb[(Math.random()*nb.length)|0], r=grid[i2];
+    grid[k2]=r; grid[i2]=null;
+    r.ox=(i2%COLS-k2%COLS)*(CELL+GAP);
+    r.oy=(((i2/COLS)|0)-((k2/COLS)|0))*(CELL+GAP);
+    r.born=time-1;
+  }
+  for(var j=0;j<N;j++) if(grid[j]&&grid[j].kind==='rat'&&flood(j).length>=3){ resolveFrom(j); break; }
+}
+function dropJunk(){
+  if(mode!=='play') return;
+  var em=[]; for(var i=0;i<N;i++) if(!grid[i]) em.push(i);
+  if(!em.length) return;
+  var k=em[(Math.random()*em.length)|0];
+  grid[k]={kind:'item',tier:0,born:time,ox:0,oy:0};
+  sfx.bad(); shake=Math.max(shake,6);
+  addFloat(cxp(k)+CELL/2,cyp(k)+CELL/2,'有人亂丟！','#ffb3b3',17);
+  resolveFrom(k);
+}
+function checkOver(){
+  if(mode!=='play') return;
+  if(empties()===0 && brooms<=0) gameOver();
+}
+
+/* ---------- 結束 / 開始 ---------- */
+function gameOver(){
+  for(var i=0;i<timers.length;i++){ try{ timers[i].fn(); }catch(e){} }   // 結算前把待處理分數補完
+  timers=[];
+  mode='over'; broomMode=false; card=null; cardQ=[];
+  var fin=Math.round(score), prev=best;
+  if(fin>prev){ best=fin; lsSet('mtx_best',String(best)); recFx=2.2; sfx.record(); }
+  else sfx.over();
+  overInfo={score:fin,rec:fin>prev,diff:Math.max(1,prev-fin+1),clues:clues,maxTier:maxTier,turn:turn,
+            taunt:TAUNT[(Math.random()*TAUNT.length)|0],t:0};
+  if(window.SC) SC.over(fin);
+}
+function start(){
+  grid=new Array(N);
+  for(var i=0;i<N;i++) grid[i]=null;
+  score=0; disp=0; brooms=1; clues=0; maxTier=0; turn=0; ordersDone=0;
+  mode='play'; ratsMove=false; junkTurn=42; warnedLow=false; truth=false;
+  parts=[]; floats=[]; ghosts=[]; timers=[]; cardQ=[]; card=null; toast=null;
+  broomMode=false; shake=0; recFx=0; overInfo=null; cur=12;
+  queue=[genQ(),genQ()]; newOrder();
+  // 開局先鋪兩對「差一個就合併」的線索：前 15 秒保證有爽感、不可能死
+  grid[6]={kind:'item',tier:0,born:0,ox:0,oy:0};
+  grid[8]={kind:'item',tier:0,born:0,ox:0,oy:0};
+  grid[12]={kind:'item',tier:1,born:0,ox:0,oy:0};
+  grid[16]={kind:'item',tier:1,born:0,ox:0,oy:0};
+  toastMsg('點亮的格子放下去就會合併喵！');
+  sfx.tick();
+}
+
+/* ---------- 輸入 ---------- */
+function cellAt(x,y){
+  if(x<BX-6||x>BX+BW+6) return -1;
+  if(y<BY-6||y>BY+BH+6) return -1;
+  var c=Math.floor((x-BX)/(CELL+GAP)), r=Math.floor((y-BY)/(CELL+GAP));
+  c=Math.max(0,Math.min(COLS-1,c)); r=Math.max(0,Math.min(ROWS-1,r));
+  return r*COLS+c;
+}
+function clearInput(){ broomMode=false; }
+cv.addEventListener('pointerdown',function(e){
+  if(e.preventDefault) e.preventDefault();
+  resumeAudio();
+  var r=cv.getBoundingClientRect();
+  if(!r.width||!r.height) return;
+  var x=(e.clientX-r.left)/r.width*W, y=(e.clientY-r.top)/r.height*H;
+  if(mode==='title'){ start(); return; }
+  if(mode==='over'){ if(overInfo&&overInfo.t>0.4) start(); return; }
+  if(card){ if(card.t>0.2) card=null; return; }
+  kb=false;
+  if(x>=264&&x<=384&&y>=552&&y<=596){          // 掃帚按鈕
+    if(brooms>0){ broomMode=!broomMode; sfx.tick(); } else sfx.bad();
+    return;
+  }
+  var i=cellAt(x,y); if(i>=0) place(i);
+},{passive:false});
+cv.addEventListener('pointercancel',clearInput);
+cv.addEventListener('pointerleave',function(){});
+window.addEventListener('blur',clearInput);
+document.addEventListener('visibilitychange',function(){ if(document.hidden) clearInput(); });
+window.addEventListener('keydown',function(e){
+  var k=e.key||'';
+  if(k===' '||k==='Enter'||k.indexOf('Arrow')===0){ if(e.preventDefault) e.preventDefault(); }
+  resumeAudio();
+  if(mode==='title'){ start(); return; }
+  if(mode==='over'){ if(k===' '||k==='Enter'||k.toLowerCase()==='r') start(); return; }
+  if(card){ if(card.t>0.2) card=null; return; }
+  kb=true;
+  var lo=k.toLowerCase();
+  if(k==='ArrowLeft'&&cur%COLS>0){ cur--; sfx.tick(); }
+  else if(k==='ArrowRight'&&cur%COLS<COLS-1){ cur++; sfx.tick(); }
+  else if(k==='ArrowUp'&&cur>=COLS){ cur-=COLS; sfx.tick(); }
+  else if(k==='ArrowDown'&&cur<N-COLS){ cur+=COLS; sfx.tick(); }
+  else if(k===' '||k==='Enter') place(cur);
+  else if(lo==='z'||lo==='b'){ if(brooms>0){ broomMode=!broomMode; sfx.tick(); } else sfx.bad(); }
+});
+
+/* ---------- 更新 ---------- */
+function update(dt){
+  time+=dt;
+  var i;
+  for(i=timers.length-1;i>=0;i--){
+    timers[i].t-=dt;
+    if(timers[i].t<=0){ var f=timers[i].fn; timers.splice(i,1); try{ f(); }catch(e){} }
+  }
+  for(i=parts.length-1;i>=0;i--){
+    var p=parts[i];
+    p.l-=dt; if(p.l<=0){ parts.splice(i,1); continue; }
+    p.vy+=340*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vx*=0.98;
+  }
+  for(i=floats.length-1;i>=0;i--){
+    var fl=floats[i]; fl.l-=dt; fl.y-=34*dt; if(fl.l<=0) floats.splice(i,1);
+  }
+  for(i=ghosts.length-1;i>=0;i--){
+    var g=ghosts[i]; g.t+=dt; if(g.t>0.24) ghosts.splice(i,1);
+  }
+  for(i=0;i<N;i++){
+    var c=grid[i]; if(!c) continue;
+    if(c.ox) c.ox+= -c.ox*Math.min(1,dt*13);
+    if(c.oy) c.oy+= -c.oy*Math.min(1,dt*13);
+  }
+  shake+= -shake*Math.min(1,dt*9); if(shake<0.15) shake=0;
+  disp+= (score-disp)*Math.min(1,dt*9);
+  if(Math.abs(score-disp)<0.6) disp=score;
+  if(recFx>0){
+    recFx-=dt;
+    if(Math.random()<0.5) burst(30+Math.random()*340,120+Math.random()*380,
+      ['#ffd94a','#8ef0b0','#9fd0ff'][(Math.random()*3)|0],3);
+  }
+  if(!card&&cardQ.length) card={n:cardQ.shift(),t:0};
+  if(card){ card.t+=dt; if(card.t>3.0) card=null; }
+  if(toast){ toast.l-=dt; if(toast.l<=0) toast=null; }
+  if(overInfo) overInfo.t+=dt;
+}
+
+/* ---------- 繪圖工具 ---------- */
+function F(s,w){ ctx.font=(w?w+' ':'')+s+'px '+FONT; }
+function EF(s){ ctx.font=s+'px '+EFONT; }
+function rr(x,y,w,h,r){
+  if(r>w/2)r=w/2; if(r>h/2)r=h/2;
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+}
+function txt(t,x,y,col,size,align,weight){
+  F(size,weight); ctx.fillStyle=col; ctx.textAlign=align||'left'; ctx.fillText(t,x,y);
+}
+function emo(e,x,y,size){
+  EF(size); ctx.textAlign='center'; ctx.fillText(e,x,y);
+}
+/* 史萊姆貓（綠史萊姆＋貓耳） */
+function drawSlime(x,y,r){
+  ctx.save(); ctx.translate(x,y);
+  var br=1+0.05*Math.sin(time*2.2);
+  ctx.scale(1/br,br);
+  ctx.fillStyle='rgba(0,0,0,.3)';
+  ctx.beginPath(); ctx.ellipse(0,r*0.95,r*0.85,r*0.2,0,0,6.3); ctx.fill();
+  var g=ctx.createRadialGradient(-r*0.3,-r*0.45,r*0.1,0,0,r*1.25);
+  g.addColorStop(0,'#b6f59a'); g.addColorStop(1,'#3d9b4e');
+  ctx.fillStyle=g;
+  ctx.beginPath();                                  // 貓耳
+  ctx.moveTo(-r*0.78,-r*0.42); ctx.lineTo(-r*0.62,-r*1.15); ctx.lineTo(-r*0.14,-r*0.72); ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(r*0.78,-r*0.42); ctx.lineTo(r*0.62,-r*1.15); ctx.lineTo(r*0.14,-r*0.72); ctx.closePath(); ctx.fill();
+  ctx.beginPath();                                  // 果凍身體
+  ctx.moveTo(-r,r*0.35);
+  ctx.bezierCurveTo(-r,-r*0.95,r,-r*0.95,r,r*0.35);
+  ctx.bezierCurveTo(r*0.75,r*0.9,r*0.4,r*0.55,r*0.1,r*0.85);
+  ctx.bezierCurveTo(-r*0.2,r*0.55,-r*0.6,r*0.95,-r,r*0.35);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.35)';
+  ctx.beginPath(); ctx.ellipse(-r*0.35,-r*0.4,r*0.2,r*0.13,-0.5,0,6.3); ctx.fill();
+  var blink=(time%3.6)<0.13;
+  ctx.fillStyle='#12351c';
+  if(blink){
+    ctx.fillRect(-r*0.45,-r*0.1,r*0.28,r*0.055); ctx.fillRect(r*0.17,-r*0.1,r*0.28,r*0.055);
+  }else{
+    ctx.beginPath(); ctx.ellipse(-r*0.32,-r*0.1,r*0.11,r*0.15,0,0,6.3); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(r*0.32,-r*0.1,r*0.11,r*0.15,0,0,6.3); ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.85)';
+    ctx.beginPath(); ctx.arc(-r*0.28,-r*0.16,r*0.04,0,6.3); ctx.fill();
+    ctx.beginPath(); ctx.arc(r*0.36,-r*0.16,r*0.04,0,6.3); ctx.fill();
+    ctx.fillStyle='#12351c';
+  }
+  ctx.beginPath(); ctx.moveTo(-r*0.08,r*0.13); ctx.lineTo(r*0.08,r*0.13); ctx.lineTo(0,r*0.24); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+/* ---------- 各區塊繪製 ---------- */
+function drawBG(){
+  var g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#161d33'); g.addColorStop(0.55,'#101427'); g.addColorStop(1,'#090c16');
+  ctx.fillStyle=g; ctx.fillRect(-24,-24,W+48,H+48);
+  var rg=ctx.createRadialGradient(200,50,10,200,50,320);
+  rg.addColorStop(0,'rgba(255,214,140,.14)'); rg.addColorStop(1,'rgba(255,214,140,0)');
+  ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+}
+function popScale(age){
+  if(age<0.10) return 0.35+(1.18-0.35)*(age/0.10);
+  if(age<0.22) return 1.18-0.18*((age-0.10)/0.12);
+  return 1;
+}
+function drawTile(c,x,y,s,alpha){
+  ctx.save();
+  ctx.globalAlpha=alpha===undefined?1:alpha;
+  ctx.translate(x+CELL/2,y+CELL/2); ctx.scale(s,s);
+  if(c.kind==='rat'){
+    ctx.rotate(Math.sin(time*7+x)*0.07);
+    ctx.fillStyle='#5c6172'; rr(-CELL/2,-CELL/2,CELL,CELL,14); ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.16)'; ctx.lineWidth=2; ctx.stroke();
+    ctx.fillStyle='#fff'; emo('🐭',0,2,34);
+  }else{
+    var T=TIERS[c.tier];
+    ctx.fillStyle=T.c; rr(-CELL/2,-CELL/2,CELL,CELL,14); ctx.fill();
+    var gg=ctx.createLinearGradient(0,-CELL/2,0,CELL/2);
+    gg.addColorStop(0,'rgba(255,255,255,.22)'); gg.addColorStop(1,'rgba(0,0,0,.18)');
+    ctx.fillStyle=gg; rr(-CELL/2,-CELL/2,CELL,CELL,14); ctx.fill();
+    ctx.strokeStyle=c.tier>=6?'rgba(255,232,150,.9)':'rgba(255,255,255,.22)';
+    ctx.lineWidth=c.tier>=6?2.5:1.5; rr(-CELL/2+1,-CELL/2+1,CELL-2,CELL-2,13); ctx.stroke();
+    ctx.fillStyle='#fff'; emo(T.e,0,1,34);
+    txt(String(c.tier+1),CELL/2-8,-CELL/2+10,'rgba(255,255,255,.55)',10,'right','bold');
+  }
+  ctx.restore();
+}
+function hintCells(){
+  var out=[], q=queue[0];
+  if(!q||q.kind!=='item') return out;
+  for(var i=0;i<N;i++){
+    if(grid[i]) continue;
+    grid[i]={kind:'item',tier:q.tier,born:-99};
+    if(flood(i).length>=3) out.push(i);
+    grid[i]=null;
+  }
+  return out;
+}
+function drawHUD(){
+  txt('分數',14,18,'rgba(255,255,255,.5)',11,'left');
+  txt(String(Math.round(disp)),14,36,'#eafff0',25,'left','bold');
+  txt('最高',386,18,'rgba(255,255,255,.5)',11,'right');
+  txt(String(best),386,34,'#ffd479',17,'right','bold');
+  if(mode==='play'&&score<best) txt('破紀錄還差 '+(best-Math.round(score)),386,46,'rgba(255,212,121,.75)',10,'right');
+  else if(mode==='play') txt('★ 新紀錄中！',386,46,'#8ef0b0',10,'right');
+  // 線索進度（長期目標）
+  txt('線索 '+clues+'/8',200,16,'rgba(255,255,255,.62)',11,'center');
+  for(var i=0;i<8;i++){
+    var x=200-56+i*16;
+    ctx.beginPath(); ctx.arc(x,32,5,0,6.3);
+    ctx.fillStyle=i<clues?'#8ef0b0':'rgba(255,255,255,.16)'; ctx.fill();
+  }
+  if(junkTurn<9999&&turn+1===junkTurn) txt('⚠ 下一回有人亂丟東西',200,46,'#ffb3b3',10,'center');
+}
+function drawOrderCard(){
+  ctx.fillStyle='rgba(255,255,255,.06)'; rr(14,52,372,52,12); ctx.fill();
+  ctx.strokeStyle='rgba(142,240,176,.22)'; ctx.lineWidth=1.5; ctx.stroke();
+  drawSlime(40,78,17);
+  if(order){
+    var need=Math.max(0,order.need-order.have);
+    txt('委託：湊出 '+order.need+' 個 '+TIERS[order.tier].n,70,66,'#dff5e6',13,'left','bold');
+    emo(TIERS[order.tier].e,232,66,16);
+    txt(need>0?('還差 '+need+' 個'):'完成！',376,66,need<=1?'#ffd479':'rgba(255,255,255,.6)',12,'right','bold');
+    var bw=306, px=70, py=84;
+    ctx.fillStyle='rgba(0,0,0,.35)'; rr(px,py,bw,9,5); ctx.fill();
+    var pr=Math.min(1,order.have/order.need);
+    if(pr>0){
+      ctx.fillStyle=pr>=0.66?'#ffd479':'#8ef0b0';
+      rr(px,py,Math.max(6,bw*pr),9,5); ctx.fill();
+    }
+  }
+}
+function drawBoard(){
+  var em=empties(), danger=em<=4;
+  ctx.fillStyle='rgba(255,255,255,.035)'; rr(BX-7,BY-7,BW+14,BH+14,16); ctx.fill();
+  if(danger){
+    ctx.strokeStyle='rgba(255,90,90,'+(0.35+0.35*Math.sin(time*7)).toFixed(3)+')'; ctx.lineWidth=3;
+  }else{ ctx.strokeStyle='rgba(255,255,255,.10)'; ctx.lineWidth=1.5; }
+  rr(BX-7,BY-7,BW+14,BH+14,16); ctx.stroke();
+  var i;
+  for(i=0;i<N;i++){
+    ctx.fillStyle='rgba(255,255,255,.045)';
+    rr(cxp(i),cyp(i),CELL,CELL,14); ctx.fill();
+  }
+  if(turn<6&&!broomMode&&mode==='play'){                 // 前 6 回合的合併提示（教學）
+    var hs=hintCells(), a=0.4+0.35*Math.sin(time*5);
+    for(i=0;i<hs.length;i++){
+      ctx.strokeStyle='rgba(142,240,176,'+a.toFixed(3)+')'; ctx.lineWidth=3;
+      rr(cxp(hs[i])+2,cyp(hs[i])+2,CELL-4,CELL-4,12); ctx.stroke();
+    }
+  }
+  if(broomMode){
+    for(i=0;i<N;i++) if(grid[i]){
+      ctx.strokeStyle='rgba(188,217,255,'+(0.4+0.3*Math.sin(time*7)).toFixed(3)+')'; ctx.lineWidth=3;
+      rr(cxp(i)+2,cyp(i)+2,CELL-4,CELL-4,12); ctx.stroke();
+    }
+  }
+  for(i=0;i<N;i++){
+    var c=grid[i]; if(!c) continue;
+    var age=time-(c.born||0); if(age<0) continue;
+    drawTile(c,cxp(i)+(c.ox||0),cyp(i)+(c.oy||0),popScale(age));
+  }
+  for(i=0;i<ghosts.length;i++){
+    var g=ghosts[i]; if(g.t<0) continue;
+    var k=g.t/0.24;
+    drawTile(g.c,g.x,g.y,1-0.55*k,1-k);
+  }
+  if(kb&&mode==='play'){
+    ctx.strokeStyle='rgba(255,255,255,.75)'; ctx.lineWidth=3;
+    rr(cxp(cur)-2,cyp(cur)-2,CELL+4,CELL+4,15); ctx.stroke();
+  }
+}
+function drawFX(){
+  var i;
+  for(i=0;i<parts.length;i++){
+    var p=parts[i];
+    ctx.globalAlpha=Math.max(0,p.l/p.m); ctx.fillStyle=p.c;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,6.3); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  for(i=0;i<floats.length;i++){
+    var f=floats[i];
+    ctx.globalAlpha=Math.max(0,Math.min(1,f.l/0.5));
+    txt(f.t,f.x,f.y,f.c,f.s,'center','bold');
+  }
+  ctx.globalAlpha=1;
+}
+function drawBottom(){
+  txt('下一個',22,566,'rgba(255,255,255,.5)',11,'left');
+  var q0=queue[0], q1=queue[1];
+  function box(q,x,y,sz,alpha){
+    ctx.save(); ctx.globalAlpha=alpha;
+    var col=q?(q.kind==='rat'?'#5c6172':(q.kind==='gift'?'#a8862c':TIERS[q.tier].c)):'#333';
+    ctx.fillStyle=col; rr(x,y,sz,sz,10); ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.25)'; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.fillStyle='#fff';
+    emo(q?(q.kind==='rat'?'🐭':(q.kind==='gift'?'🎁':TIERS[q.tier].e)):'',x+sz/2,y+sz/2+1,sz*0.6);
+    ctx.restore();
+  }
+  var bob=Math.sin(time*3)*2;
+  box(q0,74,551+bob,44,1);
+  box(q1,128,559,32,0.55);
+  // 掃帚按鈕
+  var on=broomMode;
+  ctx.fillStyle=on?'rgba(188,217,255,.28)':'rgba(255,255,255,.07)';
+  rr(264,552,120,44,12); ctx.fill();
+  ctx.strokeStyle=on?'#bcd9ff':'rgba(255,255,255,.2)'; ctx.lineWidth=on?2.5:1.5; ctx.stroke();
+  emo('🧹',288,574,22);
+  txt('掃帚 x'+brooms,306,568,brooms>0?'#dff5e6':'rgba(255,255,255,.35)',13,'left','bold');
+  txt(on?'點要清的格子':'清掉一格',306,584,'rgba(255,255,255,.45)',10,'left');
+  if(empties()===0&&brooms>0&&mode==='play')
+    txt('版面滿了！用 🧹 清一格',200,542,'#ffb3b3',12,'center','bold');
+}
+function drawToast(){
+  var a=Math.min(1,toast.l/0.4);
+  F(13); var w=ctx.measureText(toast.txt).width+34;
+  var x=200-w/2, y=112;
+  ctx.globalAlpha=a*0.95;
+  ctx.fillStyle='rgba(14,20,34,.92)'; rr(x,y,w,30,15); ctx.fill();
+  ctx.strokeStyle='rgba(142,240,176,.4)'; ctx.lineWidth=1.5; ctx.stroke();
+  emo('🐱',x+17,y+16,15);
+  txt(toast.txt,x+30,y+16,'#dff5e6',13,'left');
+  ctx.globalAlpha=1;
+}
+function drawCard(){
+  var a=Math.min(1,card.t/0.18)*Math.min(1,(3.0-card.t)/0.3);
+  ctx.globalAlpha=Math.max(0,a);
+  ctx.fillStyle='rgba(6,9,16,.72)'; ctx.fillRect(0,0,W,H);
+  var isTruth=(card.n===CLUES.length);
+  var cy0=200, ch=isTruth?185:160;
+  ctx.fillStyle='rgba(18,26,42,.98)'; rr(26,cy0,348,ch,18); ctx.fill();
+  ctx.strokeStyle=isTruth?'#ffd479':'#8ef0b0'; ctx.lineWidth=2.5; ctx.stroke();
+  drawSlime(200,cy0+38,26);
+  txt(isTruth?'★ 真相揭曉 ★':('線索 '+card.n+' / 8'),200,cy0+78,isTruth?'#ffd479':'#8ef0b0',15,'center','bold');
+  // 自動斷行
+  var s=CLUES[card.n-1], line='', lines=[], i;
+  F(14);
+  for(i=0;i<s.length;i++){
+    if(ctx.measureText(line+s[i]).width>296){ lines.push(line); line=s[i]; }
+    else line+=s[i];
+  }
+  lines.push(line);
+  for(i=0;i<lines.length;i++) txt(lines[i],200,cy0+104+i*22,'#eafff0',14,'center');
+  if(isTruth) txt('結案獎金 +2500',200,cy0+ch-42,'#ffd479',14,'center','bold');
+  txt('點一下繼續',200,cy0+ch-18,'rgba(255,255,255,.45)',11,'center');
+  ctx.globalAlpha=1;
+}
+function drawTitle(){
+  txt('喵探線索鋪',200,92,'#eafff0',36,'center','bold');
+  txt('SLIME CAT DETECTIVE',200,120,'rgba(142,240,176,.55)',11,'center','bold');
+  drawSlime(168,186,40);
+  emo('🔍',224,196,34);
+  ctx.fillStyle='rgba(255,255,255,.06)'; rr(26,238,348,74,14); ctx.fill();
+  ctx.strokeStyle='rgba(142,240,176,.25)'; ctx.lineWidth=1.5; ctx.stroke();
+  txt('放下線索，三個同款自動合併升階。',200,262,'#dff5e6',15,'center','bold');
+  txt('湊齊 8 條線索，破解「誰偷了魚乾」。',200,288,'rgba(255,255,255,.62)',12,'center');
+  txt('手機：點空格放下線索　　點 🧹 再點格子＝清掉一格',200,330,'rgba(255,255,255,.6)',11.5,'center');
+  txt('電腦：方向鍵移動、Enter／空白放下、Z 用掃帚',200,350,'rgba(255,255,255,.6)',11.5,'center');
+  txt('🐭 老鼠不能合併，三隻連在一起才抓得走',200,372,'rgba(255,180,180,.7)',11.5,'center');
+  // 線索牆（收集慾 + 回訪鉤子）
+  txt('線索牆',200,404,'rgba(255,255,255,.5)',11,'center');
+  for(var i=0;i<8;i++){
+    var x=200-98+i*28;
+    ctx.fillStyle=i<wall?'rgba(142,240,176,.22)':'rgba(255,255,255,.07)';
+    rr(x-12,414,24,24,7); ctx.fill();
+    ctx.strokeStyle=i<wall?'#8ef0b0':'rgba(255,255,255,.14)'; ctx.lineWidth=1.2; ctx.stroke();
+    ctx.fillStyle='#fff';
+    if(i<wall) emo('🔍',x,427,13); else txt('?',x,427,'rgba(255,255,255,.3)',12,'center','bold');
+  }
+  txt('已收集 '+wall+'/8　連續辦案 '+streak+' 天（明天再來延續）',200,456,'rgba(255,212,121,.8)',11.5,'center');
+  txt(best>0?('本機最高 '+best+' 分　敢破嗎喵？'):'第一次辦案？先湊三個毛線團。',200,482,'#ffd479',13,'center','bold');
+  var a=0.55+0.45*Math.sin(time*3.4);
+  ctx.globalAlpha=a;
+  ctx.fillStyle='rgba(142,240,176,.2)'; rr(120,508,160,42,21); ctx.fill();
+  ctx.strokeStyle='#8ef0b0'; ctx.lineWidth=2; ctx.stroke();
+  ctx.globalAlpha=1;
+  txt('點擊開始辦案',200,530,'#eafff0',16,'center','bold');
+  txt('一局約 2 分鐘・隨時可重來',200,572,'rgba(255,255,255,.35)',11,'center');
+}
+function drawOver(){
+  var o=overInfo;
+  ctx.fillStyle='rgba(6,9,16,.80)'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='rgba(18,26,42,.97)'; rr(24,120,352,368,20); ctx.fill();
+  ctx.strokeStyle=o.rec?'#ffd479':'rgba(255,255,255,.18)'; ctx.lineWidth=o.rec?3:1.8; ctx.stroke();
+  drawSlime(200,178,30);
+  txt(o.rec?'★ 新紀錄！★':'版面塞滿了，收攤喵…',200,228,o.rec?'#ffd479':'#eafff0',20,'center','bold');
+  txt('本局分數',200,258,'rgba(255,255,255,.5)',12,'center');
+  txt(String(o.score),200,292,'#eafff0',44,'center','bold');
+  if(o.rec) txt('前一個紀錄被你踩爛了！',200,326,'#ffd479',14,'center','bold');
+  else txt('差 '+o.diff+' 分破紀錄！',200,326,'#ffd479',17,'center','bold');
+  ctx.fillStyle='rgba(255,255,255,.06)'; rr(48,344,304,64,12); ctx.fill();
+  txt('線索',96,362,'rgba(255,255,255,.5)',11,'center');
+  txt(o.clues+'/8',96,384,'#8ef0b0',17,'center','bold');
+  txt('最高階',200,362,'rgba(255,255,255,.5)',11,'center');
+  emo(TIERS[o.maxTier].e,200,386,24);
+  txt('回合',304,362,'rgba(255,255,255,.5)',11,'center');
+  txt(String(o.turn),304,384,'#dff5e6',17,'center','bold');
+  txt(o.clues>=8?'案子破了，下一樁更難喵。':o.taunt,200,428,'rgba(255,255,255,.6)',12.5,'center');
+  var a=0.6+0.4*Math.sin(time*4);
+  ctx.globalAlpha=a;
+  ctx.fillStyle='rgba(142,240,176,.22)'; rr(110,446,180,40,20); ctx.fill();
+  ctx.strokeStyle='#8ef0b0'; ctx.lineWidth=2; ctx.stroke();
+  ctx.globalAlpha=1;
+  txt('再來一局',200,466,'#eafff0',17,'center','bold');
+  txt('點任意處（或按 Enter）馬上重開',200,506,'rgba(255,255,255,.4)',11,'center');
+}
+
+/* ---------- 主繪製 ---------- */
+function draw(){
+  ctx.save();
+  if(shake>0.15) ctx.translate((Math.random()-0.5)*shake,(Math.random()-0.5)*shake);
+  drawBG();
+  if(mode==='title'){ drawTitle(); ctx.restore(); return; }
+  drawHUD(); drawOrderCard(); drawBoard(); drawFX(); drawBottom();
+  if(toast) drawToast();
+  if(mode==='over') drawOver();
+  if(card) drawCard();
+  ctx.restore();
+}
+
+/* ---------- 固定時間步長主迴圈（不依賴 60fps） ---------- */
+var last=0, acc=0, STEP=1/60;
+function frame(ts){
+  requestAnimationFrame(frame);
+  try{
+    if(!last) last=ts;
+    var dt=(ts-last)/1000; last=ts;
+    if(!(dt>=0)) dt=0;
+    if(dt>0.25) dt=0.25;
+    acc+=dt;
+    var n=0;
+    while(acc>=STEP&&n<6){ update(STEP); acc-=STEP; n++; }
+    if(n>=6) acc=0;
+    draw();
+  }catch(e){ /* 靜默保護：不輸出錯誤、不中斷迴圈 */ }
+}
+requestAnimationFrame(frame);
+})();
+</script>
+<script src="../../sc_config.js"></script>
+<script src="../../stats.js"></script>
+</body>
+</html>
