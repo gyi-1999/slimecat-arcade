@@ -1,0 +1,789 @@
+<!--GAMEMETA {"title":"貓界一夕爆紅","emoji":"💌","genre":"策略","inspiration":"好萊塢合成：星夢逆襲","desc":"連拆同款八卦信引爆連鎖頭條，身價一路狂飆"}-->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>貓界一夕爆紅</title>
+<style>
+  html,body{margin:0;padding:0;height:100%;background:#0d0b16;overflow:hidden;
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+    -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;}
+  #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;}
+  canvas{display:block;touch-action:none;border-radius:14px;
+    box-shadow:0 12px 48px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.06);}
+  .back{position:fixed;left:10px;top:8px;z-index:9;color:#cbb9ff;background:rgba(20,16,34,.72);
+    border:1px solid rgba(203,185,255,.32);border-radius:999px;padding:5px 12px;
+    font-size:13px;text-decoration:none;line-height:1.4;}
+  .back:active{background:rgba(60,48,96,.9);}
+</style>
+</head>
+<body>
+<a class="back" href="../../index.html">← 回遊戲區</a>
+<div id="wrap"><canvas id="game"></canvas></div>
+<script>
+(function(){
+'use strict';
+
+/* ===== 基本設定：邏輯畫布固定 400x600，實體緩衝依 DPR 放大 ===== */
+var W=400,H=600;
+var cv=document.getElementById('game');
+var ctx=cv.getContext('2d',{alpha:false});
+var FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif';
+var EMO='"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+
+function resize(){
+  var s=Math.min(window.innerWidth/W,(window.innerHeight)/H);
+  if(!isFinite(s)||s<=0)s=1;
+  var dpr=Math.min(3,window.devicePixelRatio||1);
+  cv.style.width=(W*s)+'px';
+  cv.style.height=(H*s)+'px';
+  cv.width=Math.max(1,Math.round(W*s*dpr));
+  cv.height=Math.max(1,Math.round(H*s*dpr));
+  // 重設變換，讓後續繪圖一律用 400x600 邏輯座標
+  ctx.setTransform(s*dpr,0,0,s*dpr,0,0);
+}
+window.addEventListener('resize',resize);
+window.addEventListener('orientationchange',function(){setTimeout(resize,120);});
+
+/* ===== 小工具 ===== */
+function f(sz,w){return (w||'700')+' '+sz+'px '+FONT;}
+function fe(sz){return sz+'px '+EMO;}
+function fmt(n){n=Math.round(n);var s=String(Math.abs(n)),o='';while(s.length>3){o=','+s.slice(-3)+o;s=s.slice(0,-3);}return (n<0?'-':'')+s+o;}
+function rr(x,y,w,h,r){ // 圓角矩形路徑
+  if(r>w/2)r=w/2; if(r>h/2)r=h/2;
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+}
+function txt(s,x,y,font,color,align){ctx.font=font;ctx.fillStyle=color;ctx.textAlign=align||'left';ctx.textBaseline='middle';ctx.fillText(s,x,y);}
+function wrap(s,max){ // 中文逐字斷行
+  var out=[],line='';
+  for(var i=0;i<s.length;i++){
+    var t=line+s[i];
+    if(ctx.measureText(t).width>max&&line){out.push(line);line=s[i];}
+    else line=t;
+  }
+  if(line)out.push(line);
+  return out;
+}
+var LS={
+  get:function(k,d){try{var v=localStorage.getItem(k);return v===null?d:v;}catch(e){return d;}},
+  set:function(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+};
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};}
+
+/* ===== 音效：全部 WebAudio 合成，零外部資源 ===== */
+var ac=null;
+function audioInit(){
+  try{
+    if(!ac){var C=window.AudioContext||window.webkitAudioContext; if(C)ac=new C();}
+    if(ac&&ac.state==='suspended'){var p=ac.resume(); if(p&&p.catch)p.catch(function(){});}
+  }catch(e){ac=null;}
+}
+function tone(freq,dur,type,vol,slide,delay){
+  if(!ac)return;
+  try{
+    var t0=ac.currentTime+(delay||0);
+    var o=ac.createOscillator(),g=ac.createGain();
+    o.type=type||'sine';
+    o.frequency.setValueAtTime(freq,t0);
+    if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(30,slide),t0+dur);
+    g.gain.setValueAtTime(0.0001,t0);
+    g.gain.exponentialRampToValueAtTime(vol||0.14,t0+0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+    o.connect(g);g.connect(ac.destination);o.start(t0);o.stop(t0+dur+0.04);
+  }catch(e){}
+}
+function noise(dur,vol,hp){ // 紙張摩擦聲
+  if(!ac)return;
+  try{
+    var n=Math.floor(ac.sampleRate*dur);
+    var b=ac.createBuffer(1,n,ac.sampleRate),d=b.getChannelData(0);
+    for(var i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);
+    var src=ac.createBufferSource();src.buffer=b;
+    var fl=ac.createBiquadFilter();fl.type='highpass';fl.frequency.value=hp||900;
+    var g=ac.createGain();g.gain.value=vol||0.1;
+    src.connect(fl);fl.connect(g);g.connect(ac.destination);src.start();
+  }catch(e){}
+}
+var SFX={
+  open:function(){noise(0.16,0.10,1100);tone(520,0.08,'triangle',0.08);},
+  chain:function(n){var fr=420*Math.pow(1.13,Math.min(n,10));tone(fr,0.16,'triangle',0.15);tone(fr*2,0.09,'sine',0.07,null,0.03);},
+  brk:function(){tone(200,0.22,'sawtooth',0.13,110);},
+  trap:function(){tone(90,0.34,'square',0.16,54);noise(0.3,0.16,220);},
+  peek:function(){tone(880,0.09,'sine',0.10);tone(1240,0.08,'sine',0.06,null,0.06);},
+  clear:function(){[523,659,784,1047].forEach(function(fr,i){tone(fr,0.24,'triangle',0.13,null,i*0.075);});},
+  record:function(){[784,988,1175,1568,1976].forEach(function(fr,i){tone(fr,0.3,'square',0.09,null,i*0.08);});},
+  over:function(){[420,330,262,196].forEach(function(fr,i){tone(fr,0.34,'sawtooth',0.11,null,i*0.13);});},
+  ui:function(){tone(660,0.07,'square',0.08);}
+};
+
+/* ===== 八卦類型（史萊姆貓宇宙原創題材） ===== */
+var TYPES=[
+  {e:'💔',n:'分手',c:'#ff6f9d',d:'#4a2136'},
+  {e:'💰',n:'豪門',c:'#ffcf52',d:'#4a3c15'},
+  {e:'🎭',n:'背叛',c:'#b08bff',d:'#332553'},
+  {e:'🐟',n:'偷魚',c:'#5ec8ff',d:'#173c50'},
+  {e:'👑',n:'認親',c:'#ff9c52',d:'#4a2c14'}
+];
+var TRAP=-1, BLOCK=-2;
+
+/* 連鎖倍率表（指數感成長） */
+var MULT=[1,2,3,5,8,12,17,23,30,38];
+function ptsOf(ch){return 10*MULT[Math.min(ch-1,MULT.length-1)];}
+
+/* 劇情字卡：狗血短台詞（好奇缺口鉤子） */
+var STORY=[
+ '頭條：史萊姆貓深夜黏在便利商店門口，粉絲一夜暴增三千。',
+ '爆料：橘貓總裁公開認領史萊姆貓，稱其為失散多年的姪子。',
+ '經紀人否認：「那條魚真的不是我們拿的。」',
+ '網友肉搜：牠的黏液顏色，跟五年前那隻一模一樣。',
+ '震驚！三花天后臨時取消合作，理由是「太黏了」。',
+ '豪門公告：史萊姆貓將繼承一整座罐頭工廠。',
+ '頂樓偷拍：兩個影子，其中一個在發光。',
+ '大反轉：所謂背叛，其實是為了保住黑貓的合約。',
+ '訪談金句：「我不是紅，我只是比較黏。」',
+ '衝突升級：貓界工會揚言封殺，粉絲連夜洗版。',
+ '和解記者會上，橘貓總裁默默遞出一條魚。',
+ '傳聞：史萊姆貓將主演年度大戲《黏在你身邊》。',
+ '醜聞洗白，代言費翻倍，同業集體沉默。',
+ '巔峰：貓界群星獎，首度頒給非固體生物。'
+];
+var HYPE=[{n:3,t:'爆！'},{n:5,t:'上熱搜！'},{n:7,t:'全網炸鍋！'},{n:9,t:'貓界地震！'}];
+
+/* ===== 版面座標 ===== */
+var CELL=62,GAP=8,COLS=5,ROWS=5,BX=29,BY=190;
+function cellRect(i){var c=i%COLS,r=(i/COLS)|0;return{x:BX+c*(CELL+GAP),y:BY+r*(CELL+GAP),w:CELL,h:CELL};}
+function nbrs(i){
+  var c=i%COLS,r=(i/COLS)|0,a=[];
+  if(c>0)a.push(i-1); if(c<COLS-1)a.push(i+1);
+  if(r>0)a.push(i-COLS); if(r<ROWS-1)a.push(i+COLS);
+  return a;
+}
+var PEEK_BTN={x:16,y:544,w:178,h:46};
+
+/* ===== 遊戲狀態 ===== */
+var state='title', mode='classic';
+var rnd=Math.random, seedBase=0;
+var board=[], act=1, quota=0, quotaMax=0, actScore=0, target=0;
+var chain=0, lastType=-9, total=0, best=0, opensThisAct=0, peeks=0, peekMode=false;
+var scoreShown=0, recordDone=false, overSent=false;
+var cursor=12, useKbd=false, storyT=0, storyLine='', storyBonus=0, storyNext='';
+var parts=[], floats=[], flashes=[], shake=0, catMood='idle', catSquash=0, tick=0;
+var msg='', msgT=0, hintPulse=0;
+var dailyBest=0, dailyStreak=0, todayKey='';
+
+best=parseInt(LS.get('scbr_best','0'),10)||0;
+
+function today(){var d=new Date();return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();}
+function loadDaily(){
+  todayKey=String(today());
+  dailyBest=parseInt(LS.get('scbr_d_'+todayKey,'0'),10)||0;
+  dailyStreak=parseInt(LS.get('scbr_streak','0'),10)||0;
+}
+loadDaily();
+
+/* 每幕設定：難度靠「八卦種類、黑函、刪文格、配額、目標」五旋鈕爬升 */
+function actCfg(n){
+  var types=n<=2?4:5;
+  var traps=n<=2?0:(n===3?1:(n<=5?2:(n<=7?3:4)));
+  var blocked=n>=8?3:(n>=6?2:(n>=5?1:0));
+  var q=n<=4?15:(n<=7?14:13);
+  var tg=[0,140,280,300,320,330,340,350,360][n]||(360+15*(n-8));
+  return {types:types,traps:traps,blocked:blocked,quota:q,target:tg};
+}
+
+/* ===== 產生版面：同款八卦長成連續色塊，讓推理有跡可循 ===== */
+function genBoard(cfg,seed){
+  var r=mulberry32(seed);
+  var N=COLS*ROWS, own=new Array(N), i, k;
+  for(i=0;i<N;i++)own[i]=-9;
+  var idx=[]; for(i=0;i<N;i++)idx.push(i);
+  for(i=idx.length-1;i>0;i--){var j=(r()*(i+1))|0;var t=idx[i];idx[i]=idx[j];idx[j]=t;}
+  var regions=[];
+  for(k=0;k<cfg.types;k++){own[idx[k]]=k;regions.push([idx[k]]);}
+  var left=N-cfg.types, guard=0;
+  while(left>0&&guard++<3000){
+    var grew=false;
+    for(k=0;k<cfg.types&&left>0;k++){
+      var cand=[],m,nb,a;
+      for(m=0;m<regions[k].length;m++){
+        nb=nbrs(regions[k][m]);
+        for(a=0;a<nb.length;a++) if(own[nb[a]]===-9) cand.push(nb[a]);
+      }
+      if(cand.length){
+        var p=cand[(r()*cand.length)|0];
+        own[p]=k;regions[k].push(p);left--;grew=true;
+      }
+    }
+    if(!grew)break;
+  }
+  for(i=0;i<N;i++){ // 保底填補
+    if(own[i]===-9){
+      var nn=nbrs(i),got=-9;
+      for(var z=0;z<nn.length;z++) if(own[nn[z]]>=0){got=own[nn[z]];break;}
+      own[i]=got>=0?got:0;
+    }
+  }
+  // 放黑函與已刪文格（開局即可見，不做突襲）
+  var pool=[]; for(i=0;i<N;i++)pool.push(i);
+  for(i=pool.length-1;i>0;i--){var j2=(r()*(i+1))|0;var t2=pool[i];pool[i]=pool[j2];pool[j2]=t2;}
+  var cur=0;
+  for(i=0;i<cfg.blocked;i++){own[pool[cur++]]=BLOCK;}
+  for(i=0;i<cfg.traps;i++){own[pool[cur++]]=TRAP;}
+  // 建立格子物件並算提示數字
+  var b=[];
+  for(i=0;i<N;i++)b.push({t:own[i],open:false,peek:false,anim:0,glow:0,same:0,near:0,blocked:own[i]===BLOCK});
+  for(i=0;i<N;i++){
+    var nb2=nbrs(i),s=0,d=0;
+    for(var q2=0;q2<nb2.length;q2++){
+      var o=b[nb2[q2]];
+      if(o.t===TRAP)d++;
+      if(b[i].t>=0&&o.t===b[i].t)s++;
+    }
+    b[i].same=s;b[i].near=d;
+  }
+  return b;
+}
+
+/* ===== 特效 ===== */
+function burst(x,y,color,n,pw){
+  for(var i=0;i<n;i++){
+    var a=Math.random()*Math.PI*2,sp=40+Math.random()*(pw||130);
+    parts.push({x:x,y:y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-40,life:0.55+Math.random()*0.5,max:1,c:color,s:2+Math.random()*3.4,g:280});
+  }
+}
+function fly(text,x,y,color,size){floats.push({t:text,x:x,y:y,vy:-42,life:1.05,c:color,s:size||18});}
+function camFlash(){flashes.push({x:20+Math.random()*360,y:60+Math.random()*440,life:0.34,r:26+Math.random()*30});}
+function say(t,ms){msg=t;msgT=ms||1.6;}
+
+/* ===== 開新的一幕 ===== */
+function startAct(n){
+  act=n;
+  var cfg=actCfg(n);
+  board=genBoard(cfg,(seedBase+n*7919)|0);
+  quota=cfg.quota;quotaMax=cfg.quota;target=cfg.target;
+  actScore=0;chain=0;lastType=-9;opensThisAct=0;peeks=3;peekMode=false;
+  cursor=12;hintPulse=0;
+  state='play';
+}
+function startGame(m){
+  mode=m;
+  seedBase = (m==='daily') ? today() : ((Math.random()*1e9)|0);
+  if(m==='daily'){ // 連續挑戰天數（明日再來鉤子）
+    var last=LS.get('scbr_lastday','');
+    var d=new Date(); var yd=new Date(d.getTime()-86400000);
+    var ydKey=String(yd.getFullYear()*10000+(yd.getMonth()+1)*100+yd.getDate());
+    if(last!==todayKey){
+      dailyStreak=(last===ydKey)?dailyStreak+1:1;
+      LS.set('scbr_streak',String(dailyStreak));
+      LS.set('scbr_lastday',todayKey);
+    }
+  }
+  total=0;scoreShown=0;recordDone=false;overSent=false;
+  parts=[];floats=[];flashes=[];shake=0;catMood='idle';
+  say('連續拆開同款八卦信，連鎖越長身價越高！',2.6);
+  startAct(1);
+}
+
+/* ===== 教學：前三次拆信給「唾手可得」的建議格 ===== */
+function suggestIdx(){
+  if(act!==1||opensThisAct>=3)return -1;
+  var i,cand=[];
+  if(lastType>=0){
+    for(i=0;i<board.length;i++) if(!board[i].open&&board[i].t===lastType) cand.push(i);
+    // 優先挑「和已開同款相鄰」的
+    for(i=0;i<cand.length;i++){
+      var nb=nbrs(cand[i]);
+      for(var j=0;j<nb.length;j++) if(board[nb[j]].open&&board[nb[j]].t===lastType) return cand[i];
+    }
+    return cand.length?cand[0]:-1;
+  }
+  var bestI=-1,bs=-1;
+  for(i=0;i<board.length;i++){
+    var c=board[i];
+    if(c.open||c.t<0)continue;
+    if(c.same>bs){bs=c.same;bestI=i;}
+  }
+  return bestI;
+}
+
+/* ===== 核心動作：拆信 ===== */
+function openCell(i){
+  if(state!=='play')return;
+  var c=board[i];
+  if(!c||c.open||c.blocked)return;
+  if(peekMode){ // 線人偷看：不消耗配額、不影響連鎖
+    if(peeks<=0||c.peek){peekMode=false;return;}
+    c.peek=true;peeks--;peekMode=false;
+    SFX.peek();c.glow=0.5;
+    fly('偷看',cellRect(i).x+CELL/2,cellRect(i).y+18,'#8fe8ff',15);
+    say(peeks>0?('線人回報！剩 '+peeks+' 次偷看'):'偷看次數用完了',1.4);
+    return;
+  }
+  c.open=true;c.anim=1;c.glow=1;opensThisAct++;quota--;
+  var rct=cellRect(i),cx=rct.x+CELL/2,cy=rct.y+CELL/2;
+  SFX.open();
+
+  if(c.t===TRAP){ // 黑函：重罰但可回復，且相鄰提示早就警告過
+    chain=0;lastType=-9;
+    actScore=Math.max(0,actScore-30);total=Math.max(0,total-30);
+    quota=Math.max(0,quota-1);
+    shake=0.42;catMood='shock';catSquash=-0.22;
+    SFX.trap();
+    burst(cx,cy,'#ff4d6d',26,180);
+    fly('黑函 -30',cx,cy-6,'#ff6b7f',21);
+    say('踩到黑函！額外損失一次拆信',1.8);
+  }else{
+    if(lastType>=0&&c.t===lastType){chain++;}
+    else{
+      if(lastType>=0&&opensThisAct>1){SFX.brk();fly('斷了',cx,cy-8,'#9aa4bd',16);catMood='sad';shake=0.12;}
+      chain=1;
+    }
+    lastType=c.t;
+    var p=ptsOf(chain);
+    actScore+=p;total+=p;
+    SFX.chain(chain);
+    catMood='happy';catSquash=0.16+Math.min(0.2,chain*0.02);
+    burst(cx,cy,TYPES[c.t].c,10+Math.min(24,chain*4),90+chain*22);
+    fly('+'+p,cx,cy-10,TYPES[c.t].c,17+Math.min(12,chain*1.6));
+    for(var h=0;h<HYPE.length;h++){
+      if(chain===HYPE[h].n){
+        fly(HYPE[h].t,200,150,'#ffe27a',30);
+        for(var z=0;z<3;z++)camFlash();
+        shake=0.2;SFX.record();
+      }
+    }
+    if(chain>=3)camFlash();
+  }
+  // 破紀錄慶祝（局中即時）
+  if(!recordDone&&best>0&&total>best){
+    recordDone=true;SFX.record();
+    fly('🎉 新紀錄！',200,120,'#ffd85e',26);
+    burst(200,140,'#ffd85e',40,220);
+    say('新紀錄！身價創新高',2.2);
+  }
+  // 過幕判定
+  if(actScore>=target){
+    storyBonus=quota*15;
+    total+=storyBonus;
+    var nc=actCfg(act+1);
+    storyLine=STORY[(act-1)%STORY.length];
+    storyNext='下一幕：八卦 '+nc.types+' 種・黑函 '+nc.traps+' 封・拆信 '+nc.quota+' 次';
+    storyT=3.0;state='story';
+    SFX.clear();catMood='happy';
+    for(var q3=0;q3<6;q3++)camFlash();
+    burst(200,300,'#ffe27a',48,240);
+    return;
+  }
+  if(quota<=0)gameOver();
+}
+
+function gameOver(){
+  state='over';
+  SFX.over();catMood='sad';shake=0.3;
+  if(total>best){best=total;LS.set('scbr_best',String(best));}
+  if(mode==='daily'&&total>dailyBest){dailyBest=total;LS.set('scbr_d_'+todayKey,String(dailyBest));}
+  if(!overSent){
+    overSent=true;
+    if(window.SC)SC.over(total); // 匿名數據回報
+  }
+}
+
+/* ===== 輸入 ===== */
+function toLocal(e){
+  var r=cv.getBoundingClientRect();
+  return {x:(e.clientX-r.left)/r.width*W,y:(e.clientY-r.top)/r.height*H};
+}
+function inRect(p,r){return p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h;}
+
+var BTN_A={x:60,y:392,w:280,h:62}, BTN_B={x:60,y:466,w:280,h:52}, BTN_T={x:120,y:548,w:160,h:34};
+
+function press(p){
+  audioInit();useKbd=false;
+  if(state==='title'){
+    if(inRect(p,BTN_A)){SFX.ui();startGame('classic');}
+    else if(inRect(p,BTN_B)){SFX.ui();startGame('daily');}
+    return;
+  }
+  if(state==='story'){nextAct();return;}
+  if(state==='over'){
+    if(inRect(p,BTN_T)){SFX.ui();state='title';loadDaily();return;}
+    SFX.ui();startGame(mode);return;
+  }
+  if(state==='play'){
+    if(inRect(p,PEEK_BTN)){
+      if(peeks>0){peekMode=!peekMode;SFX.ui();say(peekMode?'選一封信偷看內容':'取消偷看',1.2);}
+      else say('偷看次數已用完',1.2);
+      return;
+    }
+    for(var i=0;i<board.length;i++){
+      var r=cellRect(i);
+      if(p.x>=r.x-3&&p.x<=r.x+r.w+3&&p.y>=r.y-3&&p.y<=r.y+r.h+3){openCell(i);return;}
+    }
+  }
+}
+function nextAct(){storyT=0;startAct(act+1);SFX.ui();}
+
+cv.addEventListener('pointerdown',function(e){e.preventDefault();press(toLocal(e));},{passive:false});
+cv.addEventListener('pointercancel',function(){peekMode=peekMode;},{passive:true});
+cv.addEventListener('contextmenu',function(e){e.preventDefault();});
+window.addEventListener('blur',function(){/* 清掉暫存輸入狀態，避免卡住 */ peekMode=false;});
+
+window.addEventListener('keydown',function(e){
+  var k=e.key;
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Enter'].indexOf(k)>=0)e.preventDefault();
+  audioInit();
+  if(state==='title'){
+    if(k==='Enter'||k===' ')startGame('classic');
+    if(k==='d'||k==='D')startGame('daily');
+    return;
+  }
+  if(state==='story'){if(k==='Enter'||k===' ')nextAct();return;}
+  if(state==='over'){
+    if(k==='t'||k==='T'){state='title';loadDaily();return;}
+    if(k==='Enter'||k===' '||k==='r'||k==='R')startGame(mode);
+    return;
+  }
+  if(state==='play'){
+    useKbd=true;
+    var c=cursor%COLS,r=(cursor/COLS)|0;
+    if(k==='ArrowLeft'||k==='a')c=Math.max(0,c-1);
+    else if(k==='ArrowRight'||k==='d')c=Math.min(COLS-1,c+1);
+    else if(k==='ArrowUp'||k==='w')r=Math.max(0,r-1);
+    else if(k==='ArrowDown'||k==='s')r=Math.min(ROWS-1,r+1);
+    else if(k==='Enter'||k===' '){openCell(cursor);return;}
+    else if(k==='p'||k==='P'){if(peeks>0){peekMode=!peekMode;SFX.ui();}return;}
+    cursor=r*COLS+c;
+  }
+});
+
+/* ===== 更新（固定步長） ===== */
+function update(dt){
+  tick+=dt;
+  hintPulse+=dt;
+  if(shake>0)shake=Math.max(0,shake-dt*1.6);
+  if(msgT>0)msgT-=dt;
+  catSquash*=Math.pow(0.001,dt);
+  if(catMood!=='idle'&&Math.random()<dt*1.1)catMood='idle';
+  scoreShown+=(total-scoreShown)*Math.min(1,dt*9);
+  var i;
+  for(i=0;i<board.length;i++){
+    if(board[i].anim>0)board[i].anim=Math.max(0,board[i].anim-dt*4.2);
+    if(board[i].glow>0)board[i].glow=Math.max(0,board[i].glow-dt*1.4);
+  }
+  for(i=parts.length-1;i>=0;i--){
+    var p=parts[i];
+    p.life-=dt;p.vy+=p.g*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;
+    if(p.life<=0)parts.splice(i,1);
+  }
+  for(i=floats.length-1;i>=0;i--){
+    var fo=floats[i];fo.life-=dt;fo.y+=fo.vy*dt;fo.vy*=Math.pow(0.2,dt);
+    if(fo.life<=0)floats.splice(i,1);
+  }
+  for(i=flashes.length-1;i>=0;i--){flashes[i].life-=dt;if(flashes[i].life<=0)flashes.splice(i,1);}
+  if(state==='story'){storyT-=dt;if(storyT<=0)nextAct();}
+}
+
+/* ===== 繪圖 ===== */
+function drawBG(){
+  var g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#171226');g.addColorStop(0.55,'#120e1f');g.addColorStop(1,'#0c0916');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  // 舞台聚光
+  var s1=ctx.createRadialGradient(90,40,10,90,40,260);
+  s1.addColorStop(0,'rgba(255,214,120,0.13)');s1.addColorStop(1,'rgba(255,214,120,0)');
+  ctx.fillStyle=s1;ctx.fillRect(0,0,W,340);
+  var s2=ctx.createRadialGradient(330,20,10,330,20,240);
+  s2.addColorStop(0,'rgba(140,180,255,0.11)');s2.addColorStop(1,'rgba(140,180,255,0)');
+  ctx.fillStyle=s2;ctx.fillRect(0,0,W,320);
+  // 鎂光燈閃爍
+  for(var i=0;i<flashes.length;i++){
+    var fl=flashes[i],a=Math.max(0,fl.life/0.34);
+    var rg=ctx.createRadialGradient(fl.x,fl.y,1,fl.x,fl.y,fl.r);
+    rg.addColorStop(0,'rgba(255,255,255,'+(0.5*a)+')');rg.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=rg;ctx.fillRect(fl.x-fl.r,fl.y-fl.r,fl.r*2,fl.r*2);
+  }
+}
+// 史萊姆貓：綠色果凍身體＋貓耳（原創造型）
+function drawCat(x,y,r,mood){
+  ctx.save();ctx.translate(x,y);
+  var wob=Math.sin(tick*3.2)*0.035+catSquash;
+  ctx.scale(1+wob,1-wob*0.85);
+  ctx.fillStyle='#4fdc8a';
+  // 耳朵
+  ctx.beginPath();ctx.moveTo(-r*0.72,-r*0.62);ctx.lineTo(-r*0.34,-r*1.34);ctx.lineTo(-r*0.06,-r*0.72);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.moveTo(r*0.72,-r*0.62);ctx.lineTo(r*0.34,-r*1.34);ctx.lineTo(r*0.06,-r*0.72);ctx.closePath();ctx.fill();
+  // 身體
+  var g=ctx.createLinearGradient(0,-r,0,r);
+  g.addColorStop(0,'#83f7b0');g.addColorStop(1,'#28b46b');
+  ctx.fillStyle=g;
+  ctx.beginPath();
+  ctx.moveTo(-r,r*0.72);
+  ctx.bezierCurveTo(-r*1.06,-r*0.5,-r*0.62,-r*1.04,0,-r*1.04);
+  ctx.bezierCurveTo(r*0.62,-r*1.04,r*1.06,-r*0.5,r,r*0.72);
+  ctx.quadraticCurveTo(0,r*1.04,-r,r*0.72);
+  ctx.closePath();ctx.fill();
+  // 高光
+  ctx.fillStyle='rgba(255,255,255,0.42)';
+  ctx.beginPath();ctx.ellipse(-r*0.34,-r*0.44,r*0.2,r*0.13,-0.5,0,6.3);ctx.fill();
+  // 表情
+  ctx.strokeStyle='#153a26';ctx.lineWidth=Math.max(2,r*0.1);ctx.lineCap='round';
+  ctx.fillStyle='#153a26';
+  if(mood==='happy'){
+    ctx.beginPath();ctx.moveTo(-r*0.46,-r*0.1);ctx.lineTo(-r*0.26,-r*0.3);ctx.lineTo(-r*0.06,-r*0.1);
+    ctx.moveTo(r*0.06,-r*0.1);ctx.lineTo(r*0.26,-r*0.3);ctx.lineTo(r*0.46,-r*0.1);ctx.stroke();
+  }else if(mood==='shock'){
+    ctx.beginPath();ctx.ellipse(-r*0.28,-r*0.16,r*0.11,r*0.15,0,0,6.3);ctx.fill();
+    ctx.beginPath();ctx.ellipse(r*0.28,-r*0.16,r*0.11,r*0.15,0,0,6.3);ctx.fill();
+  }else if(mood==='sad'){
+    ctx.beginPath();ctx.moveTo(-r*0.44,-r*0.3);ctx.lineTo(-r*0.1,-r*0.1);
+    ctx.moveTo(r*0.44,-r*0.3);ctx.lineTo(r*0.1,-r*0.1);ctx.stroke();
+  }else{
+    ctx.beginPath();ctx.ellipse(-r*0.28,-r*0.16,r*0.09,r*0.12,0,0,6.3);ctx.fill();
+    ctx.beginPath();ctx.ellipse(r*0.28,-r*0.16,r*0.09,r*0.12,0,0,6.3);ctx.fill();
+  }
+  // 嘴
+  ctx.beginPath();
+  if(mood==='sad'){ctx.moveTo(-r*0.16,r*0.32);ctx.quadraticCurveTo(0,r*0.18,r*0.16,r*0.32);}
+  else{ctx.moveTo(-r*0.18,r*0.2);ctx.quadraticCurveTo(0,r*0.4,r*0.18,r*0.2);}
+  ctx.stroke();
+  ctx.restore();
+}
+function drawSeal(cx,cy,r){
+  ctx.fillStyle='#d8455f';ctx.beginPath();ctx.arc(cx,cy,r,0,6.3);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,0.85)';
+  ctx.beginPath();ctx.ellipse(cx,cy+r*0.2,r*0.42,r*0.32,0,0,6.3);ctx.fill();
+  var a=[-0.55,0,0.55];
+  for(var i=0;i<3;i++){
+    ctx.beginPath();ctx.arc(cx+Math.sin(a[i])*r*0.5,cy-r*0.4,r*0.15,0,6.3);ctx.fill();
+  }
+}
+function drawCell(i){
+  var c=board[i],r=cellRect(i);
+  var sc=1+Math.sin((1-c.anim)*Math.PI)*0.16*(c.anim>0?1:0);
+  ctx.save();
+  ctx.translate(r.x+r.w/2,r.y+r.h/2);ctx.scale(sc,sc);ctx.translate(-r.w/2,-r.h/2);
+  var x=0,y=0,w=r.w,h=r.h;
+  if(c.blocked){
+    rr(x,y,w,h,9);ctx.fillStyle='#1c2030';ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,0.10)';ctx.lineWidth=2;ctx.stroke();
+    txt('已刪文',w/2,h/2,f(12,'700'),'#5a6178','center');
+  }else if(!c.open){
+    // 未拆信封
+    var g=ctx.createLinearGradient(0,0,0,h);
+    g.addColorStop(0,'#f7ecd4');g.addColorStop(1,'#dfc99e');
+    rr(x,y,w,h,9);ctx.fillStyle=g;ctx.fill();
+    ctx.strokeStyle='#a98f63';ctx.lineWidth=2;ctx.stroke();
+    ctx.strokeStyle='rgba(150,120,72,0.6)';ctx.lineWidth=1.6;
+    ctx.beginPath();ctx.moveTo(x+3,y+4);ctx.lineTo(x+w/2,y+h*0.44);ctx.lineTo(x+w-3,y+4);ctx.stroke();
+    drawSeal(w/2,h*0.66,10);
+    if(c.peek){ // 線人偷看過
+      rr(x,y,w,h,9);ctx.fillStyle='rgba(90,220,255,0.16)';ctx.fill();
+      ctx.font=fe(20);ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(c.t===TRAP?'🖤':TYPES[c.t].e,w/2,h*0.4);
+    }
+  }else if(c.t===TRAP){
+    rr(x,y,w,h,9);ctx.fillStyle='#241722';ctx.fill();
+    ctx.strokeStyle='#ff4d6d';ctx.lineWidth=2;ctx.stroke();
+    ctx.font=fe(26);ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('🖤',w/2,h/2-4);
+    txt('黑函',w/2,h-13,f(11,'700'),'#ff8497','center');
+  }else{
+    var T=TYPES[c.t];
+    rr(x,y,w,h,9);ctx.fillStyle=T.d;ctx.fill();
+    ctx.strokeStyle=T.c;ctx.lineWidth=2;ctx.stroke();
+    if(c.glow>0){rr(x,y,w,h,9);ctx.strokeStyle='rgba(255,255,255,'+(0.6*c.glow)+')';ctx.lineWidth=3;ctx.stroke();}
+    ctx.font=fe(27);ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(T.e,w/2,h*0.42);
+    // 提示：相鄰同款數
+    rr(4,h-19,17,15,4);ctx.fillStyle='rgba(255,255,255,0.16)';ctx.fill();
+    txt(String(c.same),12.5,h-11.5,f(11,'800'),'#ffffff','center');
+    if(c.near>0){ // 相鄰黑函警告
+      ctx.fillStyle='#ff4d6d';ctx.beginPath();ctx.arc(w-13,h-12,8.5,0,6.3);ctx.fill();
+      txt(String(c.near),w-13,h-12,f(11,'800'),'#fff','center');
+    }
+  }
+  ctx.restore();
+  // 教學建議環
+  if(state==='play'&&suggestIdx()===i){
+    var pl=0.5+0.5*Math.sin(hintPulse*5);
+    rr(r.x-4,r.y-4,r.w+8,r.h+8,12);
+    ctx.strokeStyle='rgba(255,214,90,'+(0.45+0.5*pl)+')';ctx.lineWidth=3;ctx.stroke();
+  }
+  // 鍵盤游標
+  if(state==='play'&&useKbd&&cursor===i){
+    rr(r.x-3,r.y-3,r.w+6,r.h+6,11);ctx.strokeStyle='#8fe8ff';ctx.lineWidth=2.5;ctx.stroke();
+  }
+}
+function drawHUD(){
+  // 身價
+  ctx.font=fe(15);ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText('✨',16,26);
+  txt(fmt(scoreShown),38,26,f(27,'800'),'#ffe9a8');
+  txt('身價',38+ctx.measureText(fmt(scoreShown)).width+8,32,f(11,'700'),'#8d84a8');
+  txt('🏆 最高 '+fmt(mode==='daily'?Math.max(dailyBest,best):best),384,20,f(12,'700'),'#b3a7d6','right');
+  txt(mode==='daily'?('今日挑戰・連續 '+dailyStreak+' 天'):'經典模式',384,38,f(11,'700'),'#7d74a0','right');
+  // 幕數與配額
+  txt('第 '+act+' 幕',16,58,f(15,'800'),'#f0e9ff');
+  var qtxt='✉️ 剩 '+quota+' 次';
+  txt(qtxt,384,58,f(15,'800'),quota<=3?'#ff8497':'#cfe6ff','right');
+  // 進度條
+  var bx=16,by=72,bw=368,bh=15;
+  rr(bx,by,bw,bh,8);ctx.fillStyle='rgba(255,255,255,0.09)';ctx.fill();
+  var pr=Math.max(0,Math.min(1,actScore/target));
+  if(pr>0){
+    rr(bx,by,Math.max(10,bw*pr),bh,8);
+    var pg=ctx.createLinearGradient(bx,0,bx+bw,0);
+    pg.addColorStop(0,'#ff9c52');pg.addColorStop(1,'#ffe27a');
+    ctx.fillStyle=pg;ctx.fill();
+  }
+  txt('本幕 '+fmt(actScore)+' / '+fmt(target),bx+8,by+bh/2+0.5,f(11,'800'),'#20161f');
+  var diff=Math.max(0,target-actScore);
+  txt(diff>0?('還差 '+fmt(diff)):'達標！',bx+bw-8,by+bh/2+0.5,f(11,'800'),diff>0?'#3a2b1f':'#1d3a24','right');
+  // 史萊姆貓 + 連鎖
+  drawCat(50,140,30,catMood);
+  var cx=200;
+  if(chain>=1){
+    var glow=Math.min(1,chain/8);
+    txt('連鎖',cx-6,116,f(13,'800'),'#a89bd0','right');
+    txt('×'+chain,cx+2,118,f(30,'800'),chain>=5?'#ffd85e':'#ffffff','left');
+    txt('下一封 +'+ptsOf(chain+1),cx,146,f(13,'800'),'#7ce8b0','center');
+    if(glow>0.4){
+      ctx.strokeStyle='rgba(255,216,94,'+(0.25*glow)+')';ctx.lineWidth=2;
+      rr(cx-62,100,124,58,12);ctx.stroke();
+    }
+  }else{
+    txt('拆第一封信開始連鎖',cx,124,f(13,'700'),'#8d84a8','center');
+  }
+  // 訊息 / 提示
+  var m=msgT>0?msg:'數字＝相鄰同款信數量，紅點＝旁邊有黑函';
+  txt(m,200,172,f(12,'700'),msgT>0?'#ffe27a':'#6f6890','center');
+}
+function drawBottom(){
+  var b=PEEK_BTN;
+  rr(b.x,b.y,b.w,b.h,12);
+  ctx.fillStyle=peekMode?'rgba(94,200,255,0.28)':'rgba(255,255,255,0.07)';ctx.fill();
+  ctx.strokeStyle=peekMode?'#5ec8ff':'rgba(255,255,255,0.18)';ctx.lineWidth=2;ctx.stroke();
+  ctx.font=fe(17);ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText('🔍',b.x+14,b.y+b.h/2);
+  txt('線人偷看 ×'+peeks,b.x+42,b.y+b.h/2-7,f(15,'800'),peeks>0?'#dff3ff':'#6c7488');
+  txt(peekMode?'請點一封信':'不花拆信次數',b.x+42,b.y+b.h/2+11,f(11,'700'),'#8fa8c4');
+  txt('拆到同款＝連鎖延長',384,556,f(12,'800'),'#9a90bd','right');
+  txt('拆到黑函＝重罰斷鏈',384,574,f(12,'800'),'#ff8497','right');
+}
+function drawFX(){
+  var i;
+  for(i=0;i<parts.length;i++){
+    var p=parts[i];ctx.globalAlpha=Math.max(0,Math.min(1,p.life));
+    ctx.fillStyle=p.c;ctx.fillRect(p.x-p.s/2,p.y-p.s/2,p.s,p.s);
+  }
+  ctx.globalAlpha=1;
+  for(i=0;i<floats.length;i++){
+    var fo=floats[i];ctx.globalAlpha=Math.max(0,Math.min(1,fo.life));
+    ctx.font=f(fo.s,'800');ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.lineWidth=4;ctx.strokeStyle='rgba(0,0,0,0.5)';ctx.strokeText(fo.t,fo.x,fo.y);
+    ctx.fillStyle=fo.c;ctx.fillText(fo.t,fo.x,fo.y);
+  }
+  ctx.globalAlpha=1;
+}
+function drawTitle(){
+  // 標題
+  ctx.font=fe(46);ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('💌',200,96);
+  txt('貓界一夕爆紅',200,158,f(38,'900'),'#ffe9a8','center');
+  txt('史萊姆貓的八卦逆襲',200,192,f(14,'700'),'#b3a7d6','center');
+  drawCat(200,262,42,'happy');
+  // 一句話規則
+  rr(28,312,344,62,14);ctx.fillStyle='rgba(255,255,255,0.06)';ctx.fill();
+  txt('連續拆開同款八卦信，連鎖越長身價越高；',200,332,f(14,'800'),'#f0e9ff','center');
+  txt('用完拆信次數前湊到目標身價就過關。',200,354,f(14,'800'),'#f0e9ff','center');
+  // 按鈕
+  var pl=0.5+0.5*Math.sin(tick*3);
+  rr(BTN_A.x,BTN_A.y,BTN_A.w,BTN_A.h,16);
+  var g=ctx.createLinearGradient(0,BTN_A.y,0,BTN_A.y+BTN_A.h);
+  g.addColorStop(0,'#ffcf52');g.addColorStop(1,'#ff9c52');
+  ctx.fillStyle=g;ctx.fill();
+  ctx.strokeStyle='rgba(255,255,255,'+(0.25+0.4*pl)+')';ctx.lineWidth=2;ctx.stroke();
+  txt('開始爆料',200,BTN_A.y+31,f(24,'900'),'#3a2210','center');
+  rr(BTN_B.x,BTN_B.y,BTN_B.w,BTN_B.h,14);ctx.fillStyle='rgba(255,255,255,0.08)';ctx.fill();
+  ctx.strokeStyle='rgba(180,160,255,0.5)';ctx.lineWidth=2;ctx.stroke();
+  txt('今日挑戰（每天同一副牌局）',200,BTN_B.y+19,f(15,'800'),'#e2d9ff','center');
+  txt('今日最佳 '+fmt(dailyBest)+'　連續 '+dailyStreak+' 天',200,BTN_B.y+38,f(12,'700'),'#a99ed0','center');
+  txt('🏆 最高身價 '+fmt(best),200,536,f(14,'800'),'#ffd85e','center');
+  txt('點畫面／方向鍵移動・Enter 拆信・P 偷看',200,562,f(11,'700'),'#7d74a0','center');
+  txt('紅點提醒旁邊有黑函，拆到會重罰',200,580,f(11,'700'),'#6f6890','center');
+}
+function drawStory(){
+  ctx.fillStyle='rgba(8,6,16,0.82)';ctx.fillRect(0,0,W,H);
+  rr(24,164,352,272,18);ctx.fillStyle='#1b1630';ctx.fill();
+  ctx.strokeStyle='#ffd85e';ctx.lineWidth=2;ctx.stroke();
+  txt('第 '+act+' 幕・爆紅成功',200,200,f(20,'900'),'#ffd85e','center');
+  ctx.font=fe(30);ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('📰',200,240);
+  ctx.font=f(15,'800');
+  var lines=wrap(storyLine,296);
+  for(var i=0;i<lines.length;i++)txt(lines[i],200,278+i*24,f(15,'800'),'#f4eeff','center');
+  txt('效率獎金 +'+fmt(storyBonus)+'　（剩餘拆信 ×15）',200,364,f(14,'800'),'#7ce8b0','center');
+  txt(storyNext,200,392,f(12,'700'),'#ff9c9c','center');
+  var pl=0.5+0.5*Math.sin(tick*4);
+  txt('點一下繼續',200,418,f(13,'800'),'rgba(255,255,255,'+(0.4+0.5*pl)+')','center');
+}
+function drawOver(){
+  ctx.fillStyle='rgba(8,6,16,0.86)';ctx.fillRect(0,0,W,H);
+  var isRec=(total>=best&&total>0);
+  rr(24,110,352,368,18);ctx.fillStyle='#171226';ctx.fill();
+  ctx.strokeStyle=isRec?'#ffd85e':'#5a4f7d';ctx.lineWidth=2;ctx.stroke();
+  txt(isRec?'🎉 新紀錄！':'爆紅退燒了',200,148,f(23,'900'),isRec?'#ffd85e':'#f0e9ff','center');
+  drawCat(200,214,36,isRec?'happy':'sad');
+  txt('最終身價',200,266,f(13,'700'),'#a99ed0','center');
+  txt(fmt(total),200,298,f(42,'900'),'#ffe9a8','center');
+  txt('撐到第 '+act+' 幕・本幕還差 '+fmt(Math.max(0,target-actScore))+' 身價就過關',200,334,f(12,'800'),'#ff9c9c','center');
+  if(isRec)txt('你就是本季貓界最大咖！',200,362,f(15,'800'),'#7ce8b0','center');
+  else txt('差 '+fmt(Math.max(1,best-total))+' 身價就破紀錄',200,362,f(16,'900'),'#ffd85e','center');
+  txt('紀錄 '+fmt(best)+(mode==='daily'?('　今日最佳 '+fmt(dailyBest)):''),200,388,f(12,'700'),'#a99ed0','center');
+  var pl=0.5+0.5*Math.sin(tick*4.5);
+  rr(70,410,260,46,14);ctx.fillStyle='rgba(255,207,82,'+(0.16+0.14*pl)+')';ctx.fill();
+  ctx.strokeStyle='rgba(255,207,82,0.7)';ctx.lineWidth=2;ctx.stroke();
+  txt('點任意處・立刻再爆一次',200,433,f(17,'900'),'#ffe9a8','center');
+  rr(BTN_T.x,BTN_T.y,BTN_T.w,BTN_T.h,10);ctx.fillStyle='rgba(255,255,255,0.07)';ctx.fill();
+  ctx.strokeStyle='rgba(255,255,255,0.18)';ctx.lineWidth=1.5;ctx.stroke();
+  txt('回標題（T）',200,BTN_T.y+17,f(13,'800'),'#cfc6ea','center');
+}
+
+function draw(){
+  ctx.save();
+  if(shake>0){
+    var s=shake*9;
+    ctx.translate((Math.random()-0.5)*s,(Math.random()-0.5)*s);
+  }
+  drawBG();
+  if(state==='title'){drawTitle();ctx.restore();return;}
+  drawHUD();
+  for(var i=0;i<board.length;i++)drawCell(i);
+  drawBottom();
+  drawFX();
+  if(state==='story')drawStory();
+  if(state==='over')drawOver();
+  ctx.restore();
+}
+
+/* ===== 主迴圈：固定時間步長，120Hz 不會變兩倍速 ===== */
+var last=0,acc=0,STEP=1/60;
+function frame(t){
+  if(!last)last=t;
+  var dt=(t-last)/1000;last=t;
+  if(dt>0.25)dt=0.25;
+  acc+=dt;
+  var guard=0;
+  while(acc>=STEP&&guard++<5){update(STEP);acc-=STEP;}
+  try{draw();}catch(e){}
+  requestAnimationFrame(frame);
+}
+resize();
+requestAnimationFrame(frame);
+})();
+</script>
+<script src="../../sc_config.js"></script>
+<script src="../../stats.js"></script>
+</body>
+</html>
