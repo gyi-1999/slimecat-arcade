@@ -2,31 +2,31 @@
 const GAMES = [
   {
     "id": "2026-07-04-001",
-    "title": "史萊姆貓彈跳",
+    "title": "SlimeCat Jump",
     "emoji": "🐱",
-    "genre": "街機",
+    "genre": "Arcade",
     "date": "2026-07-04",
-    "desc": "操控史萊姆貓一路往上彈！踩橘色彈簧一飛沖天，掉下去就 GG。"
+    "desc": "Control the slime cat to bounce all the way up! Step on orange springs to fly high, fall down and it's GG."
   },
   {
     "id": "furball-blast",
-    "title": "毛球塞爆了",
+    "title": "Furball Blast",
     "emoji": "🐱",
-    "genre": "益智",
+    "genre": "Puzzle",
     "date": "2026-07-04",
-    "desc": "把史萊姆貓積木塞進貓窩格子，拼滿一排就爆開！",
+    "desc": "Fit slime cat blocks into the cat house grid, fill a row to make it blast!",
     "ai_score": 42,
     "updated_at": "2026-07-04",
     "changelog": [
       {
         "date": "2026-07-04",
-        "summary": "修好了方塊放下時會歪掉、對不準格子的問題"
+        "summary": "Fixed the issue where blocks were skewed and misaligned with the grid when dropped."
       }
     ],
     "bugs": [
       {
         "date": "2026-07-04",
-        "note": "拖曳方塊放下的位置錯位（電腦手機都有、大方塊更明顯）：視覺以手指為中心畫、判定卻拿手指當方塊左上格，基準不一致",
+        "note": "Block drag-and-drop position offset (occurs on both PC and mobile, more noticeable with large blocks): visual rendered centered on the finger, but collision detection treated the finger as the top-left cell, causing inconsistent reference points.",
         "status": "fixed",
         "fixed_at": "2026-07-04",
         "fixed_by": "manual"
@@ -35,165 +35,165 @@ const GAMES = [
   },
   {
     "id": "2026-07-04-002",
-    "title": "喵喵發車啦",
+    "title": "Meow Bus Dispatch",
     "emoji": "🚌",
-    "genre": "益智",
+    "genre": "Puzzle",
     "date": "2026-07-04",
-    "desc": "點開沒被擋住的貓巴士接走同色小貓，別塞爆候車墊！",
+    "desc": "Tap unblocked cat buses to pick up matching colored kittens, don't overflow the waiting area!",
     "ai_score": 34
   },
   {
     "id": "2026-07-04-003",
-    "title": "喵屋抓包",
+    "title": "Ghost Cat Spotter",
     "emoji": "🔍",
-    "genre": "觀察",
+    "genre": "Observation",
     "date": "2026-07-04",
-    "desc": "上下兩間貓房限時找碴，點出幽靈亂動的所有地方！",
+    "desc": "Spot the differences between the upper and lower cat rooms under a time limit, tap all moving ghosts!",
     "ai_score": 40
   },
   {
     "id": "2026-07-04-004",
-    "title": "點心暴走喵",
+    "title": "Snack Run Cat",
     "emoji": "🍘",
-    "genre": "跑酷",
+    "genre": "Runner",
     "date": "2026-07-04",
-    "desc": "跳與滑閃避障礙，沿路吞小魚餅乾補體力，輸送帶越跑越快！",
+    "desc": "Jump and slide to dodge obstacles, devour small fish crackers along the way to recover energy, conveyor belt gets faster!",
     "ai_score": 40
   },
   {
     "id": "2026-07-04-005",
-    "title": "貓湯倒倒樂",
+    "title": "Cat Soup Pour",
     "emoji": "🍵",
-    "genre": "益智",
+    "genre": "Puzzle",
     "date": "2026-07-04",
-    "desc": "貓是液體！把同色貓湯倒進同一罐，集滿凝固成貓",
+    "desc": "Cats are liquid! Pour the same colored cat soup into the same jar, fill up to solidify into a cat.",
     "ai_score": 38
   },
   {
     "id": "2026-07-04-006",
-    "title": "肉球相撲",
+    "title": "Paw Sumo",
     "emoji": "🐱",
-    "genre": "動作",
+    "genre": "Action",
     "date": "2026-07-04",
-    "desc": "拖曳蓄力衝撞，把貓咪全撞下布丁擂台，活到最後就是橫綱喵！",
+    "desc": "Drag to charge and crash, knock all cats off the pudding ring, survive to the end as the Yokozuna cat!",
     "ai_score": 43
   },
   {
     "id": "2026-07-04-007",
-    "title": "喵喵雜貨舖大合成",
+    "title": "Meow Grocery Merge",
     "emoji": "🥫",
-    "genre": "合成",
+    "genre": "Merge",
     "date": "2026-07-04",
-    "desc": "拖曳合併貓咪點心一路升階，在客人氣走前交出訂單衝高分！",
+    "desc": "Drag to merge cat snacks up in tiers, deliver orders before customers walk away to get high scores!",
     "ai_score": 38
   },
   {
     "id": "2026-07-04-008",
-    "title": "開閘放喵",
+    "title": "Gate Release Meow",
     "emoji": "🐾",
-    "genre": "益智",
+    "genre": "Puzzle",
     "date": "2026-07-04",
-    "desc": "看穿誰擋誰，依正確順序點貓衝出格子，全部放光！",
+    "desc": "See through who is blocking who, tap cats in the correct order to rush out of the grid and clear them all!",
     "ai_score": 38
   },
   {
     "id": "2026-07-04-009",
-    "title": "喵嗚三連爆",
+    "title": "SlimeCat Triple Blast",
     "emoji": "💥",
-    "genre": "消除",
+    "genre": "Match-3",
     "date": "2026-07-04",
-    "desc": "拖曳交換史萊姆貓三連爆漿，四連生火箭五連召彩虹，限步收集目標貓過關",
+    "desc": "Drag to swap slime cats for triple blasts, 4-in-a-row spawns rockets, 5 summons rainbows, collect target cats within limited moves to win.",
     "ai_score": 42
   },
   {
     "id": "2026-07-04-010",
-    "title": "午夜喵防線",
+    "title": "Midnight Cat Defense",
     "emoji": "🌙",
-    "genre": "生存",
+    "genre": "Survival",
     "date": "2026-07-04",
-    "desc": "拖曳走位閃鼠群，肉球彈幕自動掃射，撐過120秒到天亮！",
+    "desc": "Drag to maneuver and dodge mouse swarms, paw barrage auto-fires, survive 120 seconds until dawn!",
     "ai_score": 41
   },
   {
     "id": "2026-07-04-011",
-    "title": "喵牌疊疊消",
+    "title": "Meow Tile Match",
     "emoji": "🎴",
-    "genre": "配對",
+    "genre": "Matching",
     "date": "2026-07-04",
-    "desc": "點兩張沒被壓住的同款貓牌爆漿消除，翻出下層藏的驚喜！",
+    "desc": "Tap two unblocked matching cat tiles to blast and clear them, reveal hidden surprises underneath!",
     "ai_score": 37
   },
   {
     "id": "2026-07-04-012",
-    "title": "拆家喵大隊",
+    "title": "Destructive Cat Squad",
     "emoji": "🐾",
-    "genre": "益智",
+    "genre": "Puzzle",
     "date": "2026-07-04",
-    "desc": "拔爪釘拆垮貓抓板，同色三連爆漿，肉墊塞爆前拆光全場！",
+    "desc": "Pull claw nails to tear down scratching posts, triple-match blasts, clear the whole field before paw pads overflow!",
     "ai_score": 38
   },
   {
     "id": "2026-07-04-013",
-    "title": "喵砲轟轟",
+    "title": "Cat Cannon Boom",
     "emoji": "💥",
-    "genre": "物理彈射",
+    "genre": "Physics Launcher",
     "date": "2026-07-04",
-    "desc": "拉彈弓轟垮點心塔，把打盹的胖貓全部震下來！",
+    "desc": "Pull the slingshot to blast down the snack tower, shake down all the snoozing chubby cats!",
     "ai_score": 39
   },
   {
     "id": "2026-07-04-014",
-    "title": "手忙腳亂喵食堂",
+    "title": "Hectic Cat Diner",
     "emoji": "🍔",
-    "genre": "反應",
+    "genre": "Reaction",
     "date": "2026-07-04",
-    "desc": "照訂單由下往上疊出貓咪漢堡，限時出餐衝小費combo！",
+    "desc": "Stack cat burgers from bottom to top according to orders, serve within time limits to rush tip combos!",
     "ai_score": 38
   },
   {
     "id": "2026-07-05-001",
-    "title": "喵陣連環砲",
+    "title": "Meow Chain Cannon Array",
     "emoji": "🧨",
-    "genre": "滑動策略防守",
+    "genre": "Slide Strategy Defense",
     "date": "2026-07-05",
-    "desc": "滑動排陣讓砲貓自動守家，湊滿整行整列轟出清屏大爆炸！",
+    "desc": "Slide to arrange arrays so cannon cats auto-defend home, fill full rows and columns to blast screen-clearing explosions!",
     "ai_score": 38
   },
   {
     "id": "2026-07-05-002",
-    "title": "字裡藏喵",
+    "title": "Hidden Meow in Words",
     "emoji": "🈶",
-    "genre": "文字益智",
+    "genre": "Word Puzzle",
     "date": "2026-07-05",
-    "desc": "點筆畫拆大字，把藏在字裡的小字喵通通抓出來！",
+    "desc": "Tap strokes to break down large characters, hunt out all the mini meows hidden inside!",
     "ai_score": 38,
     "feedback": [
       {
         "date": "2026-07-07",
-        "note": "一堆瑕疵",
-        "reply": "謝謝回饋！方便說說是哪些地方卡卡嗎？"
+        "note": "Lots of flaws",
+        "reply": "Thanks for the feedback! Could you specify which parts feel clunky?"
       }
     ]
   },
   {
     "id": "2026-07-06-001",
-    "title": "肉球快遞隊",
+    "title": "Paw Express Squad",
     "emoji": "🐾",
-    "genre": "策略",
+    "genre": "Strategy",
     "date": "2026-07-06",
-    "desc": "拖果凍軌跡讓史萊姆貓自動扛魚乾，看穿塞車就改道衝爆每秒進貢",
+    "desc": "Drag jelly trails for slime cats to automatically carry fish snacks, see through traffic jams and reroute to maximize per-second tribute.",
     "ai_score": 35,
     "updated_at": "2026-07-07",
     "changelog": [
       {
         "date": "2026-07-07",
-        "summary": "加了障礙地形，不能再走直線無腦通關了"
+        "summary": "Added obstacle terrains; no more mindless straight-line clearing."
       }
     ],
     "bugs": [
       {
         "date": "2026-07-07",
-        "note": "[玩家留言] 基本上沒難度 用直線即最短路徑 什麼都不用做 ➜ 在《肉球快遞隊》關卡中沿直線最短路徑上加入障礙物或需繞行的地形，使直線不再是可行/最佳解，強迫玩家規劃路線；至少讓每關直線路徑被阻擋一次。",
+        "note": "[Player comment] Basically no difficulty, straight line is the shortest path, do nothing ➜ In 《Paw Express Squad》, added obstacles or detoured terrain along the shortest straight-line path so straight lines are no longer feasible/optimal, forcing players to plan routes; block the straight-line path at least once per level.",
         "status": "fixed",
         "source": "web",
         "fixed_at": "2026-07-07"
@@ -202,30 +202,30 @@ const GAMES = [
     "feedback": [
       {
         "date": "2026-07-07",
-        "note": "基本上沒難度 用直線即最短路徑 什麼都不用做",
-        "reply": "✅ 已更新（2026-07-07）：謝謝提醒！我們會讓路線更有挑戰性喵～"
+        "note": "Basically no difficulty, straight line is the shortest path, do nothing",
+        "reply": "✅ Updated (2026-07-07): Thanks for the reminder! We'll make route planning more challenging, meow~"
       }
     ]
   },
   {
     "id": "2026-07-06-002",
-    "title": "喵色衝衝道",
+    "title": "Meow Color Rush Track",
     "emoji": "🟢",
-    "genre": "益智",
+    "genre": "Puzzle",
     "date": "2026-07-06",
-    "desc": "滑一下讓史萊姆貓全體衝到底，同色相撞爆漿消除，連鎖清盤拚高分",
+    "desc": "Slide to send all slime cats rushing to the end, same-color collisions blast and clear, chain clear boards for high scores.",
     "ai_score": 36,
     "updated_at": "2026-07-07",
     "changelog": [
       {
         "date": "2026-07-07",
-        "summary": "修好了石頭貓卡到無解的關卡，現在每關都過得了"
+        "summary": "Fixed unplayable levels stuck with stone cats; all levels are now beatable."
       }
     ],
     "bugs": [
       {
         "date": "2026-07-07",
-        "note": "[玩家留言] 其實還不錯 但石頭貓無解這件事不太好 應該要想辦法解得掉 ➜ 檢查《喵色衝衝道》關卡生成/驗證邏輯，確保每個含石頭貓的關卡至少存在一組可行解；加入產關後的可解性驗證，無解則重生或移除該石頭貓。",
+        "note": "[Player comment] Pretty good, but unplayable stone cat situations aren't great, should be solvable ➜ Checked 《Meow Color Rush Track》 level generation/validation logic, ensuring at least one feasible solution exists for every level containing stone cats; added post-generation solvability verification, regenerating or removing stone cats if unsolvable.",
         "status": "fixed",
         "source": "web",
         "fixed_at": "2026-07-07"
@@ -234,30 +234,30 @@ const GAMES = [
     "feedback": [
       {
         "date": "2026-07-07",
-        "note": "其實還不錯 但石頭貓無解這件事不太好 應該要想辦法解得掉",
-        "reply": "✅ 已更新（2026-07-07）：石頭貓無解確實不該發生，馬上修！"
+        "note": "Pretty good, but unplayable stone cat situations aren't great, should be solvable",
+        "reply": "✅ Updated (2026-07-07): Unsolvable stone cats shouldn't happen, fixing it right away!"
       }
     ]
   },
   {
     "id": "2026-07-06-003",
-    "title": "點色召喵",
+    "title": "Color Tap Meow Summon",
     "emoji": "🎨",
-    "genre": "解壓",
+    "genre": "Relaxing",
     "date": "2026-07-06",
-    "desc": "點對顏色，把史萊姆貓從喵靈墨中一格格召回！",
+    "desc": "Tap the right colors to recall slime cats cell by cell from the meow spirit ink!",
     "ai_score": null,
     "updated_at": "2026-07-07",
     "changelog": [
       {
         "date": "2026-07-07",
-        "summary": "調整了關卡圖案，X 懲罰更有份量，不能再靠對稱偷吃步"
+        "summary": "Adjusted level patterns, X penalties carry more weight, no more exploiting symmetry."
       }
     ],
     "bugs": [
       {
         "date": "2026-07-07",
-        "note": "[玩家留言] 可以按照圖形對稱來玩 x的懲罰沒太大意義 ➜ 在《點色召喵》中打破圖形對稱可被套用的規律（如隨機化非對稱目標圖樣或偏移），並重新平衡 x 懲罰使其對分數有實質影響，讓略過懲罰不再是無代價的最佳策略。",
+        "note": "[Player comment] Can play by following pattern symmetry, X penalties don't have much meaning ➜ In 《Color Tap Meow Summon》, broke rules applicable to pattern symmetry (e.g., randomizing asymmetric target layouts or offsets) and re-balanced X penalties to have real score impact, making bypassing penalties no longer a free optimal strategy.",
         "status": "fixed",
         "source": "web",
         "fixed_at": "2026-07-07"
@@ -266,23 +266,23 @@ const GAMES = [
     "feedback": [
       {
         "date": "2026-07-07",
-        "note": "可以按照圖形對稱來玩 x的懲罰沒太大意義",
-        "reply": "✅ 已更新（2026-07-07）：對稱破解的問題我們會調整，感謝回饋！"
+        "note": "Can play by following pattern symmetry, X penalties don't have much meaning",
+        "reply": "✅ Updated (2026-07-07): We will adjust the symmetry exploit issue, thanks for the feedback!"
       }
     ]
   },
   {
     "id": "2026-07-07-001",
-    "title": "你答錯了喵！",
+    "title": "You Answered Wrong, Meow!",
     "emoji": "😼",
-    "genre": "益智",
+    "genre": "Puzzle",
     "date": "2026-07-07",
-    "desc": "史萊姆貓出腦洞陷阱題，你的直覺注定被牠整到笑",
+    "desc": "Slime cats present brain-teaser traps, your intuition is bound to be toyed with to laughter.",
     "ai_score": null,
     "bugs": [
       {
         "date": "2026-07-08",
-        "note": "[玩家留言] 題庫一直重複 ➜ 在出題邏輯加入不重複抽題機制：一輪內用已出題ID清單過濾，題庫抽完前不重複同一題；整輪出完才重置清單並洗牌，避免連續重複。",
+        "note": "[Player comment] Question bank keeps repeating ➜ Added non-repeating question drawing mechanism to question logic: filtered out within a round using asked question ID list, no repeating questions until the bank is exhausted; resets and shuffles list only after completing the entire round, preventing continuous duplicates.",
         "status": "fixed",
         "source": "web",
         "fixed_at": "2026-07-08"
@@ -292,36 +292,36 @@ const GAMES = [
     "changelog": [
       {
         "date": "2026-07-08",
-        "summary": "同一輪的題目不會重複出現，玩起來更爽了"
+        "summary": "Questions in the same round will not repeat, making gameplay much more satisfying."
       }
     ],
     "feedback": [
       {
         "date": "2026-07-08",
-        "note": "題庫一直重複",
-        "reply": "✅ 已更新（2026-07-08）：喵！已在調整出題邏輯，讓題目不再一直重複～"
+        "note": "Question bank keeps repeating",
+        "reply": "✅ Updated (2026-07-08): Meow! Adjusting question logic so questions don't keep repeating~"
       }
     ]
   },
   {
     "id": "2026-07-08-001",
-    "title": "貓爪碾派對",
+    "title": "Paw Crush Party",
     "emoji": "🐾",
-    "genre": "街機／駕駛跑酷",
+    "genre": "Arcade / Driving Runner",
     "date": "2026-07-08",
-    "desc": "滑動換道輾過毛球飆連段，擦邊閃障礙拚最高分",
+    "desc": "Slide to change lanes and crush furballs for combos, skim past obstacles for high scores.",
     "ai_score": null,
     "bugs": [
       {
         "date": "2026-07-09",
-        "note": "[玩家留言] 有機會隨著分數或時間 車速加速嗎 ➜ 在遊戲主迴圈加入車速隨存活時間遞增機制：初速維持現值，每存活10秒車速+8%，上限設為初速的2倍避免失控；分數不另外掛鉤，只用時間單一變數，方便調參。",
+        "note": "[Player comment] Is there a chance car speed increases with score or time? ➜ Added vehicle speed escalation over survival time mechanism to main game loop: initial speed remains current value, speed increases +8% every 10 seconds survived, capped at 2x initial speed to prevent loss of control; score is not linked separately, using time as the single variable for easy parameter tuning.",
         "status": "fixed",
         "source": "web",
         "fixed_at": "2026-07-09"
       },
       {
         "date": "2026-07-10",
-        "note": "[玩家留言] 變更好玩了 另外應該要有補血 但頻率也不能太高 或是收集多少分就補一滴血 ➜ 新增回血機制：以累積分數為觸發（例如每達門檻N分回復1點血量），設定回血上限不超過最大血量，並加入冷卻或門檻遞增避免頻率過高。數值（門檻N、上限）做成可調參數。",
+        "note": "[Player comment] Much more fun. Also there should be healing, but frequency shouldn't be too high, or heal 1 hp upon collecting a certain score ➜ Added healing mechanism: triggered by accumulated score thresholds (e.g., recover 1 HP every N score milestone), healing cap set not to exceed max HP, with cooldown or scaling thresholds to prevent high frequency. Configured tuning parameters for threshold N and cap.",
         "status": "fixed",
         "source": "web",
         "fixed_at": "2026-07-10"
@@ -331,52 +331,52 @@ const GAMES = [
     "changelog": [
       {
         "date": "2026-07-09",
-        "summary": "現在玩越久車子會越來越快，讓遊戲更有挑戰感"
+        "summary": "Car now speeds up the longer you play, making the game more challenging."
       },
       {
         "date": "2026-07-10",
-        "summary": "分數累積就會自動補血，讓你更容易活下去！"
+        "summary": "Accumulate score to automatically heal, making it easier to survive!"
       }
     ],
     "feedback": [
       {
         "date": "2026-07-09",
-        "note": "有機會隨著分數或時間 車速加速嗎",
-        "reply": "✅ 已更新（2026-07-09）：好主意！車速會隨時間慢慢加快囉"
+        "note": "Is there a chance car speed increases with score or time?",
+        "reply": "✅ Updated (2026-07-09): Great idea! Car speed will slowly increase over time."
       },
       {
         "date": "2026-07-10",
-        "note": "變更好玩了 另外應該要有補血 但頻率也不能太高 或是收集多少分就補一滴血",
-        "reply": "✅ 已更新（2026-07-10）：會加入低頻補血，靠累積分數回一滴血～謝謝建議！"
+        "note": "Much more fun. Also there should be healing, but frequency shouldn't be too high, or heal 1 hp upon collecting a certain score",
+        "reply": "✅ Updated (2026-07-10): Added low-frequency healing, restoring 1 HP based on accumulated score~ Thanks for the suggestion!"
       }
     ]
   },
   {
     "id": "2026-07-09-001",
-    "title": "喵磚重整局",
+    "title": "Meow Tile Reorganization",
     "emoji": "🀄",
-    "genre": "益智",
+    "genre": "Puzzle",
     "date": "2026-07-09",
-    "desc": "點選同色連號或同號三色湊組消除，磚別越堆越高頂到天花板",
+    "desc": "Tap consecutive numbers or three of the same number/color sets to clear, don't let tiles pile up to the ceiling.",
     "ai_score": 36,
     "bugs": [
       {
         "date": "2026-07-10",
-        "note": "[玩家留言] 蠻好玩 但提示有點太快就可以用 不合理 然後整體生成速度太快了 這遊戲會太容易死 ➜ 延長提示可用的冷卻時間（例如從現值延後至遊玩約20~30秒後才解鎖）；降低方塊生成速度約20~30%，並下修初始難度曲線，讓早期不會過快堆滿致死。數值請做成可調參數方便後續微調。",
+        "note": "[Player comment] Quite fun, but hints can be used way too fast, which is unreasonable. Also overall spawn speed is too fast, making this game too easy to die ➜ Extended hint cooldown (e.g., unlocking after about 20-30 seconds of play); reduced tile spawn speed by 20-30% and lowered early difficulty curve to prevent premature pileups leading to death. Parameters made adjustable for fine-tuning.",
         "status": "fixed",
         "source": "web",
         "fixed_at": "2026-07-10"
       },
       {
         "date": "2026-07-10",
-        "note": "[玩家留言] 而且很常其實沒解 沒解就應該要立刻生成新的 也應該要想辦法預設不那麼容易沒解 ➜ 每次盤面變動後偵測是否仍存在有效消除/移動，若判定無解則立即清空並生成新盤面（附短暫過場提示）；生成演算法加入『可解性檢查』，確保新盤至少存在一組解，降低一開局即無解的機率。",
+        "note": "[Player comment] And very often there are actually no solutions. When unsolvable it should immediately spawn new ones, and defaults should be made less prone to having no solutions ➜ Implemented check after every board change for valid clears/moves; if deemed unsolvable, immediately clears and generates a new board (with brief transition prompt); generation algorithm includes 'solvability check' to ensure at least one solution exists, lowering no-solution chances at start.",
         "status": "fixed",
         "source": "web",
         "fixed_at": "2026-07-10"
       },
       {
         "date": "2026-07-12",
-        "note": "[玩家留言] 又變太簡單了 還有不能解的狀況應該不能變既有的 應該要是生成新的吧 也會有那種 剩下兩個 我還要等時間到才會生磚 建議自動一點 現在這版幾乎不會死 除非生成速度 ➜ 1) 提高磚塊生成速度/縮短生成間隔以提升難度；2) 場上磚數低於門檻時自動生成，不需等計時；3) 盤面無解時生成新磚，而非改動既有磚塊。",
+        "note": "[Player comment] Got too easy again. Also unsolvable states shouldn't alter existing tiles, they should generate new ones. There are times when only two are left and I have to wait for time to run out to spawn tiles. Suggest making it more automated, this version is almost impossible to die unless spawn speed is increased ➜ 1) Increased tile spawn speed/shortened intervals to boost difficulty; 2) Auto-spawn when tile count falls below threshold without waiting for timer; 3) Generate new tiles when board is unsolvable instead of altering existing ones.",
         "status": "fixed",
         "source": "web",
         "fixed_at": "2026-07-12"
@@ -386,50 +386,50 @@ const GAMES = [
     "changelog": [
       {
         "date": "2026-07-10",
-        "summary": "降低初期難度和方塊速度，也修好了會卡住無法過的盤面"
+        "summary": "Lowered early difficulty and block speed, and fixed stuck/unbeatable boards."
       },
       {
         "date": "2026-07-12",
-        "summary": "磚塊生成加快，磚子不夠會自動出現新磚，再也不怕卡關！"
+        "summary": "Tile spawning accelerated, low tiles auto-spawn new ones, no more getting stuck!"
       }
     ],
     "feedback": [
       {
         "date": "2026-07-10",
-        "note": "蠻好玩 但提示有點太快就可以用 不合理 然後整體生成速度太快了 這遊戲會太容易死",
-        "reply": "✅ 已更新（2026-07-10）：感謝回饋！提示與生成節奏我們再調整得更合理～"
+        "note": "Quite fun, but hints can be used way too fast, which is unreasonable. Also overall spawn speed is too fast, making this game too easy to die",
+        "reply": "✅ Updated (2026-07-10): Thanks for feedback! We adjusted hints and spawn pacing to be more reasonable~"
       },
       {
         "date": "2026-07-10",
-        "note": "而且很常其實沒解 沒解就應該要立刻生成新的 也應該要想辦法預設不那麼容易沒解",
-        "reply": "✅ 已更新（2026-07-10）：無解會盡快自動重生新局，也會降低卡死機率～"
+        "note": "And very often there are actually no solutions. When unsolvable it should immediately spawn new ones, and defaults should be made less prone to having no solutions",
+        "reply": "✅ Updated (2026-07-10): Unsolvable states will auto-regenerate new rounds quickly, lowering freeze chances~"
       },
       {
         "date": "2026-07-12",
-        "note": "又變太簡單了 還有不能解的狀況應該不能變既有的 應該要是生成新的吧 也會有那種 剩下兩個 我還要等時間到才會生磚 建議自動一點 現在這版幾乎不會死 除非生成速度",
-        "reply": "✅ 已更新（2026-07-12）：感謝！會加快生磚、剩少量自動補磚，死局改生新磚～"
+        "note": "Got too easy again. Also unsolvable states shouldn't alter existing tiles, they should generate new ones. There are times when only two are left and I have to wait for time to run out to spawn tiles. Suggest making it more automated, this version is almost impossible to die unless spawn speed is increased",
+        "reply": "✅ Updated (2026-07-12): Thanks! Accelerated tile spawn, auto-fills when low, deadlocks generate new tiles~"
       }
     ]
   },
   {
     "id": "2026-07-10-001",
-    "title": "貓爪種苗記",
+    "title": "Paw Seedling Journal",
     "emoji": "🌱",
-    "genre": "放置",
+    "genre": "Idle",
     "date": "2026-07-10",
-    "desc": "照顧盆栽收貓草，拍蟲防枯萎的開箱放置遊戲",
+    "desc": "Tend potted plants to harvest cat grass, an unboxing idle game of swatting bugs and preventing withering.",
     "ai_score": null,
     "bugs": [
       {
         "date": "2026-07-12",
-        "note": "[玩家留言] 這機制會讓人根本不想要多種 一直顧好一個就好 就根本不會死 遊戲多樣性不足 ➜ 提高整體難度：加入枯萎、病蟲害等隨機壓力事件，使只維護單一植株無法穩定存活，鼓勵同時經營多株；不改核心種植玩法，僅調整數值與事件觸發率。",
+        "note": "[Player comment] This mechanic makes players never want to grow more, just tend one well and it never dies, game variety is lacking ➜ Increased overall difficulty: added random pressure events like withering and pests, making maintaining a single plant unstable and encouraging multi-plant management; core planting gameplay unchanged, only tuning numbers and event trigger rates.",
         "status": "fixed",
         "source": "web",
         "fixed_at": "2026-07-12"
       },
       {
         "date": "2026-07-12",
-        "note": "[玩家留言] 可能要自動種 然後沒澆水也會掛 另外收集圖鑑功能好像沒什麼用 一下就集滿 ➜ 1) 擴充圖鑑條目數量並提高解鎖門檻，避免短時間集滿；2) 未澆水時也加入枯萎/死亡判定，讓照顧行為有意義。(玩家提的自動種植屬新玩法，先記錄不納入本次。)",
+        "note": "[Player comment] Might need auto-planting, and they should die if not watered. Also collection encyclopedia feature seems useless, fills up too fast ➜ 1) Expanded collection encyclopedia entries and raised unlock thresholds to prevent quick completion; 2) Added withering/death judgments when unwatered to give care actions meaning. (Player's auto-planting suggestion is new gameplay, recorded for later.)",
         "status": "fixed",
         "source": "web",
         "fixed_at": "2026-07-12"
@@ -439,34 +439,34 @@ const GAMES = [
     "changelog": [
       {
         "date": "2026-07-12",
-        "summary": "難度提升，只顧一株會掛，得多養幾株；圖鑑也更難集滿"
+        "summary": "Difficulty increased, tending only one plant will cause failure, must raise multiple; encyclopedia is harder to complete."
       }
     ],
     "feedback": [
       {
         "date": "2026-07-12",
-        "note": "這機制會讓人根本不想要多種 一直顧好一個就好 就根本不會死 遊戲多樣性不足",
-        "reply": "✅ 已更新（2026-07-12）：謝謝建議！會讓只顧一株沒那麼輕鬆，逼你多元經營～"
+        "note": "This mechanic makes players never want to grow more, just tend one well and it never dies, game variety is lacking",
+        "reply": "✅ Updated (2026-07-12): Thanks for suggestions! Tending just one won't be so easy, forcing diversified management~"
       },
       {
         "date": "2026-07-12",
-        "note": "可能要自動種 然後沒澆水也會掛 另外收集圖鑑功能好像沒什麼用 一下就集滿",
-        "reply": "✅ 已更新（2026-07-12）：感謝回饋！圖鑑會加更多內容，也會調整枯萎手感～"
+        "note": "Might need auto-planting, and they should die if not watered. Also collection encyclopedia feature seems useless, fills up too fast",
+        "reply": "✅ Updated (2026-07-12): Thanks for feedback! Encyclopedia will have more content, and withering mechanics adjusted~"
       }
     ]
   },
   {
     "id": "2026-07-11-001",
-    "title": "喵光斬暗陣",
+    "title": "Meow Light Slash Array",
     "emoji": "✨",
-    "genre": "動作",
+    "genre": "Action",
     "date": "2026-07-11",
-    "desc": "劃爪光斬掃四面暗影鼠，連擊保貓命",
+    "desc": "Swipe claw light to slash shadow mice coming from all directions, maintain combos to save cat life.",
     "ai_score": 40,
     "bugs": [
       {
         "date": "2026-07-12",
-        "note": "[玩家留言] 還不錯 但暗潮太慢來 也建議多出一點怪 跟種類 例如要砍兩下 要砍多下 補血的頻率似乎太高？ 還有些怪可以速度快一點 或飄的多一點 整體不錯 或砍完會在生一堆怪 ➜ 數值調整：縮短暗潮出現間隔、提高怪物數量與部分怪移動速度、降低補血道具出現頻率。(多段血量怪、分裂/召喚怪屬玩法擴充，另案評估。)",
+        "note": "[Player comment] Pretty good, but shadow surges come too slow. Suggest spawning more monsters and varieties, like ones taking two slashes or multiple slashes. Healing frequency seems too high? Some monsters could move faster or float around more, overall good, or spawn a bunch of monsters after slashing ➜ Numeric tuning: shortened shadow surge intervals, increased monster counts and movement speeds, lowered healing item frequency. (Multi-hp monsters, split/summon monsters considered game expansions, evaluated separately.)",
         "status": "fixed",
         "source": "web",
         "fixed_at": "2026-07-12"
@@ -476,43 +476,43 @@ const GAMES = [
     "changelog": [
       {
         "date": "2026-07-12",
-        "summary": "暗潮来得更快，怪物更凶更多，补血药变难得到，游戏超级刺激"
+        "summary": "Shadow surges arrive faster, monsters are fiercer and more numerous, healing potions are harder to get, super exciting game!"
       }
     ],
     "feedback": [
       {
         "date": "2026-07-12",
-        "note": "還不錯 但暗潮太慢來 也建議多出一點怪 跟種類 例如要砍兩下 要砍多下 補血的頻率似乎太高？ 還有些怪可以速度快一點 或飄的多一點 整體不錯 或砍完會在生一堆怪",
-        "reply": "✅ 已更新（2026-07-12）：謝謝！會加快暗潮、降低補血頻率，讓關卡更有張力～"
+        "note": "Pretty good, but shadow surges come too slow. Suggest spawning more monsters and varieties, like ones taking two slashes or multiple slashes. Healing frequency seems too high? Some monsters could move faster or float around more, overall good, or spawn a bunch of monsters after slashing",
+        "reply": "✅ Updated (2026-07-12): Thanks! Faster shadow surges, lower healing frequency, making stages more tense~"
       }
     ]
   },
   {
     "id": "2026-07-12-001",
-    "title": "喵爪湊一組",
+    "title": "Paw Collect Set",
     "emoji": "🐾",
-    "genre": "收集消除（拾取三消）",
+    "genre": "Collection Elimination (Pick-up Match-3)",
     "date": "2026-07-12",
-    "desc": "點掉疊放貓貓，收藏籃塞爆前把同款三個湊成一組消掉",
+    "desc": "Tap stacked cats, match three of the same kind into a set to clear before the collection basket overflows.",
     "ai_score": 38,
     "bugs": [
       {
         "date": "2026-07-15",
-        "note": "[玩家留言] 還不錯玩 但好像還是太簡單 可以生快一點 ➜ 《喵爪湊一組》(id=2026-07-12-001)：縮短方塊/貓爪生成間隔約20~30%，並小幅提高整體難度曲線（例如加快下落或縮短容錯時間），僅調參數不動玩法核心。",
+        "note": "[Player comment] Pretty fun, but still seems too simple, can spawn faster ➜ 《Paw Collect Set》(id=2026-07-12-001): Shortened block/paw spawn interval by about 20-30%, slightly raised overall difficulty curve (e.g., faster drops or shorter error tolerance time), tuning parameters only without changing core gameplay.",
         "status": "fixed",
         "source": "web",
         "fixed_at": "2026-07-15"
       },
       {
         "date": "2026-07-16",
-        "note": "[玩家留言] 還不錯玩 但好像還是太簡單 可以生快一點 ➜ 《喵爪湊一組》(id=2026-07-12-001)：提高目標/貓爪的生成速率，並隨遊玩時間逐步縮短生成間隔、加快下落速度或提高所需湊組數，讓中後期難度隨時間上升。",
+        "note": "[Player comment] Pretty fun, but still seems too simple, can spawn faster ➜ 《Paw Collect Set》(id=2026-07-12-001): Increased spawn rate of targets/paws, gradually shortened spawn intervals over play time, sped up drops or increased required sets to raise mid-late game difficulty over time.",
         "status": "fixed",
         "source": "web",
         "fixed_at": "2026-07-16"
       },
       {
         "date": "2026-07-17",
-        "note": "[玩家留言] 還不錯玩 但好像還是太簡單 可以生快一點 ➜ 縮短方塊/貓咪生成間隔約20~30%，並小幅提高下落或推進速度，整體難度往上微調一階。",
+        "note": "[Player comment] Pretty fun, but still seems too simple, can spawn faster ➜ Shortened block/cat spawn interval by 20-30%, slightly nudged drop/advancement speed up, pushing overall difficulty up a tier.",
         "status": "fixed",
         "source": "web",
         "fixed_at": "2026-07-17"
@@ -522,51 +522,51 @@ const GAMES = [
     "changelog": [
       {
         "date": "2026-07-15",
-        "summary": "遊戲加速啦！方塊掉得更快、難度也提升，挑戰變得更緊張"
+        "summary": "Game accelerated! Blocks drop faster and difficulty rises, challenges become more tense."
       },
       {
         "date": "2026-07-16",
-        "summary": "喵爪出現更快、掉下來也更急，越玩難度越高！"
+        "summary": "Paws spawn faster and drop quicker, higher difficulty the longer you play!"
       },
       {
         "date": "2026-07-17",
-        "summary": "遊戲速度更快了，難度也稍微提升，考驗你的反應力"
+        "summary": "Game speed increased, difficulty slightly boosted, testing your reaction skills."
       }
     ],
     "feedback": [
       {
         "date": "2026-07-17",
-        "note": "還不錯玩 但好像還是太簡單 可以生快一點",
-        "reply": "✅ 已更新（2026-07-17）：謝謝喜歡！我們讓喵咪生成再快一點～"
+        "note": "Pretty fun, but still seems too simple, can spawn faster",
+        "reply": "✅ Updated (2026-07-17): Thanks for liking it! We made cat spawns a bit faster~"
       }
     ]
   },
   {
     "id": "2026-07-13-001",
-    "title": "喵影浮現",
+    "title": "Meow Shadow Emergence",
     "emoji": "🐾",
-    "genre": "接龍益智",
+    "genre": "Solitaire Puzzle",
     "date": "2026-07-13",
-    "desc": "點掉相鄰數字的貓罐頭，連消揭開躲在底下的史萊姆貓",
+    "desc": "Tap adjacent numbered cat cans, chain clear to unveil the slime cats hiding underneath.",
     "ai_score": 33,
     "bugs": [
       {
         "date": "2026-07-15",
-        "note": "[玩家留言] 太常卡死了 ➜ 《喵影浮現》(id=2026-07-13-001)：排查遊戲執行中「卡死/凍結」問題，檢查主迴圈是否有無窮迴圈、資源等待或狀態機卡在同一狀態；加上逾時保護或例外處理，確保不會整個畫面停住。",
+        "note": "[Player comment] Keeps freezing too often ➜ 《Meow Shadow Emergence》(id=2026-07-13-001): Investigated "freeze/lockup" issues during execution, checked main loop for infinite loops, resource waiting, or status machine getting stuck in same state; added timeout protection and exception handling to ensure screens don't freeze.",
         "status": "fixed",
         "source": "web",
         "fixed_at": "2026-07-15"
       },
       {
         "date": "2026-07-16",
-        "note": "[玩家留言] 太常卡死了 ➜ 《喵影浮現》(id=2026-07-13-001)：排查『太常卡死』的凍結 bug，檢查主迴圈/碰撞判定/狀態機是否有無限迴圈或狀態未重置導致畫面凍結，加入逾時保護與錯誤日誌以定位重現路徑。",
+        "note": "[Player comment] Keeps freezing too often ➜ 《Meow Shadow Emergence》(id=2026-07-13-001): Investigated freezing bugs, checked main loop/collision detection/state machines for infinite loops or unreset states causing frozen screens, added timeout protection and error logs to locate reproduction paths.",
         "status": "fixed",
         "source": "web",
         "fixed_at": "2026-07-17"
       },
       {
         "date": "2026-07-17",
-        "note": "[玩家留言] 太常卡死了 ➜ 重現「卡死」情境，排查輸入鎖定、碰撞判定與狀態機是否卡在某一 state；加入逾時偵測與自動重置/解鎖機制。",
+        "note": "[Player comment] Keeps freezing too often ➜ Reproduced "freeze" scenarios, checked input locking, collision detection, and state machines for getting stuck in any state; added timeout detection and auto-reset/unlock mechanisms.",
         "status": "fixed",
         "source": "web",
         "fixed_at": "2026-07-17"
@@ -576,51 +576,51 @@ const GAMES = [
     "changelog": [
       {
         "date": "2026-07-15",
-        "summary": "修復了遊戲經常卡死的問題，現在玩起來更順暢了"
+        "summary": "Fixed frequent game freezes, now plays much smoother."
       },
       {
         "date": "2026-07-17",
-        "summary": "修好遊戲容易卡死的問題，玩起來更順了"
+        "summary": "Fixed frequent game freeze issues, smoother gameplay."
       }
     ],
     "feedback": [
       {
         "date": "2026-07-17",
-        "note": "太常卡死了",
-        "reply": "✅ 已更新（2026-07-17）：卡死很掃興，我們馬上抓這個問題！"
+        "note": "Keeps freezing too often",
+        "reply": "✅ Updated (2026-07-17): Freezes are annoying, we are fixing this issue right away!"
       },
       {
         "date": "2026-07-17",
-        "note": "沒什麼技術或反應的含量",
-        "reply": "謝謝回饋！玩法深度我們會再想想～"
+        "note": "Not much technical or reaction content",
+        "reply": "Thanks for feedback! We will rethink gameplay depth~"
       }
     ]
   },
   {
     "id": "2026-07-14-001",
-    "title": "喵兵合體陣",
+    "title": "Meow Soldier Merge Array",
     "emoji": "🐱",
-    "genre": "策略合成防禦",
+    "genre": "Strategy Merge Defense",
     "date": "2026-07-14",
-    "desc": "拖曳合體同款史萊姆貓兵升階，自動禦敵，別讓格子塞爆",
+    "desc": "Drag to merge matching slime cat soldiers to level up, auto-defend against enemies, don't let grids overflow.",
     "bugs": [
       {
         "date": "2026-07-15",
-        "note": "[玩家留言] 感覺不太容易死 而且遊戲太單一 ➜ 《喵兵合體陣》(id=2026-07-14-001)：提高敵人數量/傷害或加快進攻節奏，讓玩家有實際死亡風險（調整難度參數即可）；「遊戲太單一」屬玩法擴充，另記為後續大版本需求，本次不動核心玩法。",
+        "note": "[Player comment] Feels hard to die and game is too monotonous ➜ 《Meow Soldier Merge Array》(id=2026-07-14-001): Increased enemy count/damage or accelerated attack pacing to give players actual risk of death (tuning difficulty parameters); "game too monotonous" noted as future major version requirement, core gameplay left untouched for now.",
         "status": "fixed",
         "source": "web",
         "fixed_at": "2026-07-15"
       },
       {
         "date": "2026-07-16",
-        "note": "[玩家留言] 感覺不太容易死 而且遊戲太單一 ➜ 《喵兵合體陣》(id=2026-07-14-001)：針對『不太容易死』提高致死難度，增加敵人數量/傷害或加快出怪節奏，讓玩家更容易失敗；『遊戲太單一』屬大改玩法先不動。",
+        "note": "[Player comment] Feels hard to die and game is too monotonous ➜ 《Meow Soldier Merge Array》(id=2026-07-14-001): Boosted fatal difficulty due to "hard to die", increased enemy numbers/damage or accelerated spawn pacing to make failure easier; "game monotonous" major overhaul left untouched.",
         "status": "fixed",
         "source": "web",
         "fixed_at": "2026-07-17"
       },
       {
         "date": "2026-07-17",
-        "note": "[玩家留言] 感覺不太容易死 而且遊戲太單一 ➜ 調高敵方傷害或出怪數量、降低玩家血量或防禦，讓玩家維持一定死亡風險（目標勝率下修）；『太單一』另記為玩法擴充需求。",
+        "note": "[Player comment] Feels hard to die and game is too monotonous ➜ Raised enemy damage or spawn counts, lowered player HP/defense to maintain risk of player death (lowered target win rate); "monotonous" noted as gameplay expansion request.",
         "status": "fixed",
         "source": "web",
         "fixed_at": "2026-07-17"
@@ -630,40 +630,40 @@ const GAMES = [
     "changelog": [
       {
         "date": "2026-07-15",
-        "summary": "敵人升級了，傷害更強進攻也更快，現在真的會死哦"
+        "summary": "Enemies upgraded, stronger damage and faster attacks, now you can actually die!"
       },
       {
         "date": "2026-07-17",
-        "summary": "敵人變強了，難度大幅提升，現在更容易失敗了"
+        "summary": "Enemies got stronger, difficulty heavily boosted, easier to fail now."
       }
     ],
     "feedback": [
       {
         "date": "2026-07-17",
-        "note": "感覺不太容易死 而且遊戲太單一",
-        "reply": "✅ 已更新（2026-07-17）：難度調一下，讓對戰更有張力！"
+        "note": "Feels hard to die and game is too monotonous",
+        "reply": "✅ Updated (2026-07-17): Tuned difficulty to make battles more tense!"
       }
     ]
   },
   {
     "id": "2026-07-15-001",
-    "title": "喵色逃脫道",
+    "title": "Meow Color Escape Track",
     "emoji": "🐱",
-    "genre": "益智",
+    "genre": "Puzzle",
     "date": "2026-07-15",
-    "desc": "拖曳史萊姆貓滑出同色貓門，看穿先後順序純解謎",
+    "desc": "Drag slime cats to slide out of matching cat gates, pure puzzle-solving by figuring out sequences.",
     "ai_score": 34,
     "bugs": [
       {
         "date": "2026-07-16",
-        "note": "[玩家留言] 太簡單了 幾乎不會死 ➜ 《喵色逃脫道》(id=2026-07-15-001)：針對『太簡單、幾乎不會死』提高難度，加快障礙移動與生成速度、縮小容錯判定範圍，並隨關卡進度遞增，讓玩家會有失敗風險。",
+        "note": "[Player comment] Too simple, almost never dies ➜ 《Meow Color Escape Track》(id=2026-07-15-001): Increased difficulty due to "too simple, almost never dies", accelerated obstacle movement and spawn speeds, narrowed error tolerance ranges, scaling with level progress to create failure risks.",
         "status": "fixed",
         "source": "web",
         "fixed_at": "2026-07-17"
       },
       {
         "date": "2026-07-17",
-        "note": "[玩家留言] 太簡單了 幾乎不會死 ➜ 整體難度上調：提高障礙/敵人速度與密度、縮短安全間隔，讓玩家有實際死亡風險，避免全程零壓力。",
+        "note": "[Player comment] Too simple, almost never dies ➜ Upgraded overall difficulty: increased obstacle/enemy speed and density, shortened safe intervals to introduce actual death risks and avoid zero-pressure runs.",
         "status": "fixed",
         "source": "web",
         "fixed_at": "2026-07-17"
@@ -673,76 +673,76 @@ const GAMES = [
     "changelog": [
       {
         "date": "2026-07-17",
-        "summary": "难度变硬了，怪物跑得超快超密集，这次真的会挂掉喔"
+        "summary": "Difficulty hardened, monsters run super fast and dense, you can really croak this time."
       }
     ],
     "feedback": [
       {
         "date": "2026-07-17",
-        "note": "太簡單了 幾乎不會死",
-        "reply": "✅ 已更新（2026-07-17）：太簡單收到！我們把難度調高一點～"
+        "note": "Too simple, almost never dies",
+        "reply": "✅ Updated (2026-07-17): Too simple noted! We turned the difficulty up a bit~"
       }
     ]
   },
   {
     "id": "2026-07-16-001",
-    "title": "貓鬚雷達鬥技場",
+    "title": "Cat Whisker Radar Arena",
     "emoji": "🐱",
-    "genre": "反應",
+    "genre": "Reaction",
     "date": "2026-07-16",
-    "desc": "用貓耳雷達辨位，搶在夜光蟲鑽走前一拍抓住牠",
+    "desc": "Use cat-ear radar to locate positions, catch night glowbugs in a snap before they crawl away.",
     "ai_score": 38,
     "feedback": [
       {
         "date": "2026-07-24",
-        "note": "玩不太懂 不就一直點？",
-        "reply": "抱歉讓你困惑！我們會補教學也加深玩法～"
+        "note": "Don't really get it, isn't it just tapping all the time?",
+        "reply": "Sorry for the confusion! We will add tutorials and deepen gameplay~"
       }
     ]
   },
   {
     "id": "2026-07-18-001",
-    "title": "喵格拆彈夜",
+    "title": "Meow Grid Bomb-Shedding Night",
     "emoji": "💣",
-    "genre": "益智（邏輯推理）",
+    "genre": "Puzzle (Logic Deduction)",
     "date": "2026-07-18",
-    "desc": "看行列數字避開炸毛地雷，開格拼回史萊姆貓",
+    "desc": "Look at row/column numbers to avoid furry landmines, open grids to piece back slime cats.",
     "feedback": [
       {
         "date": "2026-07-24",
-        "note": "還不錯",
-        "reply": "謝謝支持！我們會讓它更上一層樓～"
+        "note": "Not bad",
+        "reply": "Thanks for support! We'll make it even better~"
       }
     ]
   },
   {
     "id": "2026-07-19-001",
-    "title": "喵星換裝局",
+    "title": "Meow Star Dress-Up Session",
     "emoji": "👗",
-    "genre": "益智（直覺速配）",
+    "genre": "Puzzle (Intuitive Quick-Match)",
     "date": "2026-07-19",
-    "desc": "看情境限時挑穿搭，布幕一掀看爆笑變身",
+    "desc": "Pick outfits for scenarios under time limits, watch hilarious transformations when the curtain lifts.",
     "ai_score": 33,
     "feedback": [
       {
         "date": "2026-07-24",
-        "note": "情境不夠 概念還可以",
-        "reply": "謝謝建議！情境深度我們會認真加強～"
+        "note": "Scenarios lacking, concept is okay",
+        "reply": "Thanks for suggestion! We'll seriously enhance scenario depth~"
       }
     ]
   },
   {
     "id": "2026-07-20-001",
-    "title": "喵眼大搜查",
+    "title": "Meow Eye Grand Investigation",
     "emoji": "🔍",
-    "genre": "觀察",
+    "genre": "Observation",
     "date": "2026-07-20",
-    "desc": "在雜物堆裡戳出偽裝的史萊姆貓，限時找齊全部！",
+    "desc": "Poke out disguised slime cats from piles of clutter, find them all within the time limit!",
     "ai_score": 42,
     "bugs": [
       {
         "date": "2026-07-22",
-        "note": "[玩家留言] 完全沒難度 ➜ 《喵眼大搜查》(id=2026-07-20-001)：提高關卡難度。縮短每關限時約20%、增加干擾物/相似目標物數量、後段關卡加入會移動的目標；並新增遞增難度曲線讓後面關卡明顯變難。",
+        "note": "[Player comment] Completely no difficulty ➜ 《Meow Eye Grand Investigation》(id=2026-07-20-001): Raised level difficulty. Shortened time limits per level by ~20%, increased clutter/similar target counts, added moving targets in later levels; added increasing difficulty curves so later levels get noticeably harder.",
         "status": "fixed",
         "source": "web",
         "fixed_at": "2026-07-22"
@@ -752,29 +752,29 @@ const GAMES = [
     "changelog": [
       {
         "date": "2026-07-22",
-        "summary": "時間變短、東西變多、後面難度明顯升級，還有會移動的目標喔！"
+        "summary": "Shorter times, more objects, noticeable difficulty upgrade later on, plus moving targets!"
       }
     ],
     "feedback": [
       {
         "date": "2026-07-22",
-        "note": "完全沒難度",
-        "reply": "✅ 已更新（2026-07-22）：喵～馬上幫你把難度調上來，挑戰更過癮！"
+        "note": "Completely no difficulty",
+        "reply": "✅ Updated (2026-07-22): Meow~ boosted the difficulty right up for a more thrilling challenge!"
       }
     ]
   },
   {
     "id": "2026-07-21-001",
-    "title": "喵岔路人生",
+    "title": "Meow Crossroad Life",
     "emoji": "🐱",
-    "genre": "選擇模擬",
+    "genre": "Choice Simulation",
     "date": "2026-07-21",
-    "desc": "每個抉擇決定小貓一生，養大看得見的喵家族樹！",
+    "desc": "Every choice shapes a kitten's life, raise them to see a visible meow family tree!",
     "ai_score": 36,
     "bugs": [
       {
         "date": "2026-07-22",
-        "note": "[玩家留言] 有點不知道目的 ➜ 《喵岔路人生》(id=2026-07-21-001)：開場新增一句話目標說明與首個岔路的引導提示，並在 UI 常駐顯示當前目標（例如「活過X回合／達成Y結局」）讓玩家隨時知道要做什麼。",
+        "note": "[Player comment] Kind of don't know the goal ➜ 《Meow Crossroad Life》(id=2026-07-21-001): Added a one-sentence goal explanation and initial fork prompt at opening, and permanently displayed current goals on UI (e.g., 'Survive X turns / Reach Y ending') so players always know what to do.",
         "status": "fixed",
         "source": "web",
         "fixed_at": "2026-07-22"
@@ -784,169 +784,169 @@ const GAMES = [
     "changelog": [
       {
         "date": "2026-07-22",
-        "summary": "遊戲會告訴你目標，玩的時候也能隨時看進度，不會再霧煞煞"
+        "summary": "Game tells you your goal, and you can check progress anytime while playing, no more confusion."
       }
     ],
     "feedback": [
       {
         "date": "2026-07-22",
-        "note": "有點不知道目的",
-        "reply": "✅ 已更新（2026-07-22）：喵～我們會把遊戲目標寫得更清楚，讓你一眼就懂！"
+        "note": "Kind of don't know the goal",
+        "reply": "✅ Updated (2026-07-22): Meow~ we'll make goals clearer so you understand at a glance!"
       }
     ]
   },
   {
     "id": "2026-07-22-001",
-    "title": "喵單搜查令",
+    "title": "Meow Order Warrant",
     "emoji": "🔍",
-    "genre": "觀察",
+    "genre": "Observation",
     "date": "2026-07-22",
-    "desc": "史萊姆貓雜貨鋪，照進貨清單在雜物堆裡揪出真貨",
+    "desc": "Slime cat grocery store, sniff out authentic items from clutter according to the inbound manifest.",
     "ai_score": 37,
     "feedback": [
       {
         "date": "2026-07-24",
-        "note": "其實還不錯 就是美術有點差 不然蠻刺激的",
-        "reply": "感謝回饋！美術我們排進下一輪打磨，刺激感會保留～"
+        "note": "Actually pretty good, just art is a bit poor, otherwise quite exciting",
+        "reply": "Thanks for feedback! Art polishing is queued for next round, excitement will be kept~"
       }
     ]
   },
   {
     "id": "2026-07-23-001",
-    "title": "喵骰連鎖陣",
+    "title": "Meow Dice Chain Array",
     "emoji": "🎲",
-    "genre": "策略",
+    "genre": "Strategy",
     "date": "2026-07-23",
-    "desc": "擲貓掌骰放進喵陣，同數肉球連鎖合體暴衝",
+    "desc": "Roll paw dice into meow arrays, same-number paw pads chain merge and burst forth.",
     "feedback": [
       {
         "date": "2026-07-24",
-        "note": "還蠻好玩的欸",
-        "reply": "謝謝喜歡！我們會繼續努力做更好玩的內容～"
+        "note": "Pretty fun huh",
+        "reply": "Thanks for liking it! We'll keep working hard to make more fun content~"
       }
     ]
   },
   {
     "id": "2026-07-25-001",
-    "title": "喵咪一夜暴富",
+    "title": "Cat Overnight Super Rich",
     "emoji": "🤑",
-    "genre": "放置",
+    "genre": "Idle",
     "date": "2026-07-25",
-    "desc": "狂拍肉球雇貓秘書，75秒衝出天文身價",
+    "desc": "Madly tap paw pads to hire cat secretaries, rush to astronomical net worth in 75 seconds.",
     "ai_score": 33,
     "feedback": [
       {
         "date": "2026-07-26",
-        "note": "就一直點有點沒趣味",
-        "reply": "喵～收到！點擊玩法的深度我們會再想辦法加料。"
+        "note": "Just tapping gets a bit uninteresting",
+        "reply": "Meow~ received! We'll figure out how to add more depth to the tapping gameplay."
       }
     ]
   },
   {
     "id": "2026-07-26-001",
-    "title": "喵色記憶王",
+    "title": "Meow Color Memory King",
     "emoji": "🎨",
-    "genre": "益智（記憶反應）",
+    "genre": "Puzzle (Memory Reaction)",
     "date": "2026-07-26",
-    "desc": "記住每隻史萊姆貓的配色，牠褪色時從近似色中挑回正解",
+    "desc": "Remember each slime cat's color scheme, pick out the correct one from similar colors when they fade.",
     "ai_score": 40
   },
   {
     "id": "2026-07-27-001",
-    "title": "喵爪急診室",
+    "title": "Paw ER",
     "emoji": "🐾",
-    "genre": "反應",
+    "genre": "Reaction",
     "date": "2026-07-27",
-    "desc": "拖對肉球藥膏救病貓，別讓噴嚏瘟疫爆表",
+    "desc": "Drag correct paw ointment to save sick cats, don't let sneeze plagues max out.",
     "ai_score": 39
   },
   {
     "id": "2026-07-28-001",
-    "title": "喵灶暖心鋪",
+    "title": "Meow Hearth Warming Shop",
     "emoji": "🍲",
-    "genre": "經營",
+    "genre": "Management",
     "date": "2026-07-28",
-    "desc": "照點單順序備料出餐，連擊倍率點亮暖心小攤",
+    "desc": "Prep ingredients and serve according to order sequence, combo multipliers light up the heartwarming stall.",
     "ai_score": 38
   },
   {
     "id": "2026-07-29-001",
-    "title": "貓潮突圍夜",
+    "title": "Cat Surge Breakthrough Night",
     "emoji": "🐾",
-    "genre": "生存射擊",
+    "genre": "Survival Shooter",
     "date": "2026-07-29",
-    "desc": "走位閃避鼠潮，毛球自動開火，升級三選一撐過夜市三分鐘",
+    "desc": "Maneuver to dodge mouse swarms, furballs auto-fire, pick 1-of-3 upgrades to survive 3 minutes at the night market.",
     "ai_score": 38
   },
   {
     "id": "2026-07-30-001",
-    "title": "喵藏三疊局",
+    "title": "Meow Hidden Triple Set",
     "emoji": "🥫",
-    "genre": "疊層消除",
+    "genre": "Layered Match",
     "date": "2026-07-30",
-    "desc": "點三張同款罐頭爆漿消除，掀開底下的史萊姆貓拼圖",
+    "desc": "Tap three matching cans to blast and clear, unveiling slime cat puzzles underneath.",
     "ai_score": 41
   },
   {
     "id": "2026-07-31-001",
-    "title": "喵舖鼠患保衛戰",
+    "title": "Meow Shop Rat Infestation Defense",
     "emoji": "🧹",
-    "genre": "生存",
+    "genre": "Survival",
     "date": "2026-07-31",
-    "desc": "揮魚乾拖把清鼠潮，護送迷你貓到收銀台結帳",
+    "desc": "Wield fish snack mop to clear rat swarms, escort mini cats to check out at the register.",
     "ai_score": 43
   },
   {
     "id": "2026-08-01-001",
-    "title": "喵運未定",
+    "title": "Uncertain Meow Fortune",
     "emoji": "🎲",
-    "genre": "策略",
+    "genre": "Strategy",
     "date": "2026-08-01",
-    "desc": "選骰前進撿彩金，趕在黑貓追上前收手入袋",
+    "desc": "Choose dice to advance and grab jackpots, cash out into bags before the black cat chases you down.",
     "ai_score": 43
   },
   {
     "id": "2026-08-02-001",
-    "title": "肉球煉膳坊",
+    "title": "Paw Refining Kitchen",
     "emoji": "🍡",
-    "genre": "合成",
+    "genre": "Merge",
     "date": "2026-08-02",
-    "desc": "同款肉球疊合升階，交訂單、震碎焦塊拚高分",
+    "desc": "Stack matching paw pads to merge upwards, deliver orders and shatter burnt blocks to get high scores.",
     "ai_score": 35
   },
   {
     "id": "2026-08-03-001",
-    "title": "貓爪拆塔令",
+    "title": "Cat Paw Tower Demolition Order",
     "emoji": "🧶",
-    "genre": "物理解謎",
+    "genre": "Physics Puzzle",
     "date": "2026-08-03",
-    "desc": "拋毛線球震垮貓塔，用最少球數敲醒打盹胖貓",
+    "desc": "Throw yarn balls to shatter cat towers, wake up snoozing chubby cats with the fewest balls.",
     "ai_score": 40
   },
   {
     "id": "2026-08-04-001",
-    "title": "貓聞尋味錄",
+    "title": "Cat Scent Aroma Record",
     "emoji": "🍮",
-    "genre": "合成",
+    "genre": "Merge",
     "date": "2026-08-04",
-    "desc": "拖疊相同貓點心合成升階，趕在焦味蔓延前交出訂單"
+    "desc": "Drag and stack matching cat snacks to merge tiers, deliver orders before burnt smells spread."
   },
   {
     "id": "2026-08-05-001",
-    "title": "喵探線索鋪",
+    "title": "Meow Detective Clue Shop",
     "emoji": "🔍",
-    "genre": "合成解謎",
+    "genre": "Merge Puzzle",
     "date": "2026-08-05",
-    "desc": "放線索三個同款就合併，湊齊八條線索破案",
+    "desc": "Drop clues, three of a kind merges them, collect eight clues to solve the case.",
     "ai_score": 42
   },
   {
     "id": "2026-08-06-001",
-    "title": "貓界一夕爆紅",
+    "title": "Cat World Overnight Sensation",
     "emoji": "💌",
-    "genre": "策略",
+    "genre": "Strategy",
     "date": "2026-08-06",
-    "desc": "連拆同款八卦信引爆連鎖頭條，身價一路狂飆",
+    "desc": "Unwrap matching gossip letters in chains to trigger headline explosions, rocket your net worth sky-high.",
     "ai_score": 37
   }
-];
+]
