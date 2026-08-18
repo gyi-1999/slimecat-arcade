@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#152316">
-<title>SlimeCat 遊戲區｜今天玩哪一款？</title>
+<title>SlimeCat Arcade | Game Center</title>
 <style>
   :root{
     --ink:#152316; --paper:#f4f0df; --paper-2:#e9e2c9; --card:#fffdf4;
@@ -13,7 +13,7 @@
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
-  body{margin:0;background:var(--paper);color:var(--ink);font-family:"Microsoft JhengHei",system-ui,sans-serif;min-height:100vh}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:system-ui,sans-serif;min-height:100vh}
   button,textarea{font:inherit}
   button,a{touch-action:manipulation}
   button:focus-visible,a:focus-visible,textarea:focus-visible{outline:3px solid var(--berry);outline-offset:3px}
@@ -135,76 +135,76 @@
   <div class="brand">
     <div class="brand-mark" aria-hidden="true">🐱</div>
     <div class="brand-copy">
-      <h1 class="brand-name"><span>SlimeCat</span> 遊戲區</h1>
-      <p class="brand-tagline">每天出廠一款，現在只挑最好玩的給你。</p>
+      <h1 class="brand-name"><span>SlimeCat</span> Arcade</h1>
+      <p class="brand-tagline">A new game every day, picking only the best for you.</p>
     </div>
   </div>
   <div class="header-actions">
-    <button class="btn" id="recent-btn" type="button">最近玩過</button>
-    <button class="btn" id="logbtn" type="button">更新日誌</button>
+    <button class="btn" id="recent-btn" type="button">Recent</button>
+    <button class="btn" id="logbtn" type="button">Changelog</button>
   </div>
 </header>
 <div class="stats-line" id="stats" aria-live="polite"></div>
 
 <main>
   <section class="status-panel" id="app-status" aria-live="polite" aria-busy="true">
-    <div class="skeleton" aria-label="遊戲清單載入中"><span></span><span></span><span></span></div>
+    <div class="skeleton" aria-label="Loading games list"><span></span><span></span><span></span></div>
   </section>
   <div id="app" hidden>
-    <section class="hero" aria-label="今日精選">
+    <section class="hero" aria-label="Featured Today">
       <article class="featured" id="featured"></article>
       <aside class="editors-picks">
         <p class="section-label">Editors' Picks</p>
-        <h2>本週口碑精選</h2>
+        <h2>Weekly Favorites</h2>
         <div class="pick-list" id="pick-list"></div>
       </aside>
     </section>
 
-    <section class="filter-bar" aria-label="遊戲分類">
+    <section class="filter-bar" aria-label="Game Categories">
       <div class="filters" id="filters">
-        <button class="filter" type="button" data-filter="all" aria-pressed="true">全部</button>
-        <button class="filter" type="button" data-filter="puzzle" aria-pressed="false">益智</button>
-        <button class="filter" type="button" data-filter="action" aria-pressed="false">動作</button>
-        <button class="filter" type="button" data-filter="strategy" aria-pressed="false">策略</button>
-        <button class="filter" type="button" data-filter="relax" aria-pressed="false">放鬆</button>
+        <button class="filter" type="button" data-filter="all" aria-pressed="true">All</button>
+        <button class="filter" type="button" data-filter="puzzle" aria-pressed="false">Puzzle</button>
+        <button class="filter" type="button" data-filter="action" aria-pressed="false">Action</button>
+        <button class="filter" type="button" data-filter="strategy" aria-pressed="false">Strategy</button>
+        <button class="filter" type="button" data-filter="relax" aria-pressed="false">Relax</button>
       </div>
       <div class="catalog-count" id="catalog-count"></div>
     </section>
 
     <section aria-labelledby="catalog-title">
       <div class="section-head">
-        <div><p class="section-label">Pick Your Mood</p><h2 id="catalog-title">依心情挑一款</h2><p>新品、玩法與品質，一眼就能決定。</p></div>
+        <div><p class="section-label">Pick Your Mood</p><h2 id="catalog-title">Explore Catalog</h2><p>New releases, gameplay, and quality at a glance.</p></div>
       </div>
       <div class="game-grid" id="game-grid"></div>
     </section>
 
     <section class="recent-section" id="recent-section" aria-labelledby="recent-title" hidden>
-      <div class="section-head"><div><p class="section-label">Play Again</p><h2 id="recent-title">最近玩過</h2></div></div>
+      <div class="section-head"><div><p class="section-label">Play Again</p><h2 id="recent-title">Recently Played</h2></div></div>
       <div class="game-grid" id="recent-grid"></div>
     </section>
   </div>
 </main>
 
-<footer>SlimeCat 遊戲工廠自動生產 · Batnini 出品<br>致敬千禧年的網頁小遊戲樂園</footer>
+<footer>SlimeCat Game Factory Automation · Powered by Batnini<br>Tribute to Millennial Web Mini-Game Arcades</footer>
 
 <div class="overlay" id="logov" role="dialog" aria-modal="true" aria-labelledby="logtitle">
   <div class="dialog">
-    <h3 id="logtitle">更新日誌</h3>
-    <div class="dialog-sub">工廠會持續修好玩家回報的問題，這裡看得到每款改了什麼。</div>
+    <h3 id="logtitle">Changelog</h3>
+    <div class="dialog-sub">The factory continuously fixes reported issues. See what changed for each game here.</div>
     <div id="loglist"></div>
-    <div class="dialog-actions"><button class="btn" id="logclose" type="button">關閉</button></div>
+    <div class="dialog-actions"><button class="btn" id="logclose" type="button">Close</button></div>
   </div>
 </div>
 
 <div class="overlay" id="rateov" role="dialog" aria-modal="true" aria-labelledby="ratetitle">
   <div class="dialog">
-    <h3 id="ratetitle">評分</h3>
-    <div class="dialog-sub">1～10 分，留言會交給工廠改進下一版。</div>
-    <div id="stars" aria-label="評分選擇"></div>
-    <textarea id="ratenote" maxlength="200" placeholder="哪裡好玩？哪裡卡？（選填，200 字內）"></textarea>
+    <h3 id="ratetitle">Rate Game</h3>
+    <div class="dialog-sub">Score 1–10. Your feedback will help the factory improve the next version.</div>
+    <div id="stars" aria-label="Rating Selection"></div>
+    <textarea id="ratenote" maxlength="200" placeholder="What's fun? What's stuck? (Optional, within 200 chars)"></textarea>
     <div class="dialog-actions">
-      <button class="btn" id="ratecancel" type="button">取消</button>
-      <button class="btn primary" id="ratesend" type="button">送出</button>
+      <button class="btn" id="ratecancel" type="button">Cancel</button>
+      <button class="btn primary" id="ratesend" type="button">Submit</button>
     </div>
     <div id="ratemsg" aria-live="polite"></div>
     <div id="ratefb"></div>
@@ -248,21 +248,21 @@ function daysAgo(dateStr) {
   return Math.floor((today - d) / 86400000);
 }
 function broadGenre(genre) {
-  const value = String(genre || "");
-  if (/解壓|放鬆/.test(value)) return "relax";
-  if (/策略|合成|放置|防守/.test(value)) return "strategy";
-  if (/動作|街機|跑酷|反應|生存|物理|駕駛/.test(value)) return "action";
+  const value = String(genre || "").toLowerCase();
+  if (/relax|casual/.test(value)) return "relax";
+  if (/strategy|simulation|management/.test(value)) return "strategy";
+  if (/action|arcade|runner|shooter|physics|survival/.test(value)) return "action";
   return "puzzle";
 }
 function qualityText(g) {
-  if (g.user_rating) return "玩家 " + esc(g.user_rating) + "/10";
-  if (g.ai_score) return "品質 " + esc(g.ai_score) + "/50";
+  if (g.user_rating) return "Player " + esc(g.user_rating) + "/10";
+  if (g.ai_score) return "Quality " + esc(g.ai_score) + "/50";
   const plays = getPlays(g.id);
-  return plays ? "玩過 " + plays + " 次" : "新鮮出廠";
+  return plays ? "Played " + plays + " times" : "Brand New";
 }
 function statusBadge(g) {
-  if (g.date === todayStr) return '<span class="badge">今日新作</span>';
-  if (g.updated_at && daysAgo(g.updated_at) <= 7) return '<span class="badge update">剛更新</span>';
+  if (g.date === todayStr) return '<span class="badge">New Today</span>';
+  if (g.updated_at && daysAgo(g.updated_at) <= 7) return '<span class="badge update">Updated</span>';
   return "";
 }
 function attachImageFallback(scope) {
@@ -275,30 +275,30 @@ function attachGameLinks(scope) {
 function cardHtml(g) {
   return `<article class="game-card" data-genre="${broadGenre(g.genre)}">
     <a class="card-link" href="${gameUrl(g)}" data-game-link="${esc(g.id)}">
-      <div class="thumb-wrap"><div class="thumb-fallback" aria-hidden="true">${esc(g.emoji || "🎮")}</div><img class="thumb" src="games/${encodeURIComponent(g.id)}/shot.png" loading="lazy" alt="${esc(g.title)} 遊戲畫面"></div>
-      <div class="card-body"><div class="card-topline">${statusBadge(g)}<span class="genre">${esc(g.genre || "小遊戲")}</span></div><h3 class="game-title">${esc(g.title)}</h3><p class="game-desc">${esc(g.desc || "打開看看今天工廠做了什麼玩法。")}</p></div>
+      <div class="thumb-wrap"><div class="thumb-fallback" aria-hidden="true">${esc(g.emoji || "🎮")}</div><img class="thumb" src="games/${encodeURIComponent(g.id)}/shot.png" loading="lazy" alt="${esc(g.title)} screenshot"></div>
+      <div class="card-body"><div class="card-topline">${statusBadge(g)}<span class="genre">${esc(g.genre || "Mini Game")}</span></div><h3 class="game-title">${esc(g.title)}</h3><p class="game-desc">${esc(g.desc || "Open to see what the factory made today.")}</p></div>
     </a>
-    <div class="card-footer"><span class="quality">${qualityText(g)}</span><button class="ratebtn" type="button" data-rate="${esc(g.id)}" data-title="${esc(g.title)}">評分</button></div>
+    <div class="card-footer"><span class="quality">${qualityText(g)}</span><button class="ratebtn" type="button" data-rate="${esc(g.id)}" data-title="${esc(g.title)}">Rate</button></div>
   </article>`;
 }
 function renderFeatured(g) {
   const box = document.getElementById("featured");
-  box.innerHTML = `<a class="feature-shot" href="${gameUrl(g)}" data-game-link="${esc(g.id)}" aria-label="開始玩 ${esc(g.title)}"><div class="feature-fallback" aria-hidden="true">${esc(g.emoji || "🎮")}</div><img src="games/${encodeURIComponent(g.id)}/shot.png" alt="${esc(g.title)} 遊戲畫面"></a>
-    <div class="feature-copy"><div class="kicker-row">${statusBadge(g)}<span class="badge quality">${qualityText(g)}</span></div><h2>${esc(g.title)}</h2><p>${esc(g.desc || "今天剛從 SlimeCat 工廠出爐的新遊戲。")}</p><div class="feature-meta"><span>${esc(g.genre || "小遊戲")}</span><span>${esc(g.date)}</span><span>約 3 分鐘一局</span></div><div class="feature-actions"><a class="btn primary" href="${gameUrl(g)}" data-game-link="${esc(g.id)}">開始玩</a><button class="btn" type="button" data-rate="${esc(g.id)}" data-title="${esc(g.title)}">玩後評分</button></div></div>`;
+  box.innerHTML = `<a class="feature-shot" href="${gameUrl(g)}" data-game-link="${esc(g.id)}" aria-label="Play ${esc(g.title)}"><div class="feature-fallback" aria-hidden="true">${esc(g.emoji || "🎮")}</div><img src="games/${encodeURIComponent(g.id)}/shot.png" alt="${esc(g.title)} screenshot"></a>
+    <div class="feature-copy"><div class="kicker-row">${statusBadge(g)}<span class="badge quality">${qualityText(g)}</span></div><h2>${esc(g.title)}</h2><p>${esc(g.desc || "Freshly released from the SlimeCat factory today.")}</p><div class="feature-meta"><span>${esc(g.genre || "Mini Game")}</span><span>${esc(g.date)}</span><span>~3 mins/game</span></div><div class="feature-actions"><a class="btn primary" href="${gameUrl(g)}" data-game-link="${esc(g.id)}">Play Now</a><button class="btn" type="button" data-rate="${esc(g.id)}" data-title="${esc(g.title)}">Rate</button></div></div>`;
   attachImageFallback(box); attachGameLinks(box);
 }
 function renderPicks(featured) {
   const picks = games.filter(g => g.id !== featured.id).sort((a,b) => ((b.user_rating || 0) * 5 + (b.ai_score || 0)) - ((a.user_rating || 0) * 5 + (a.ai_score || 0))).slice(0,3);
   const box = document.getElementById("pick-list");
-  box.innerHTML = picks.map(g => `<div class="pick"><span class="pick-icon" aria-hidden="true">${esc(g.emoji || "🎮")}</span><div><strong>${esc(g.title)}</strong><span>${qualityText(g)} · ${esc(g.genre || "小遊戲")}</span></div><a href="${gameUrl(g)}" data-game-link="${esc(g.id)}" aria-label="玩 ${esc(g.title)}">玩</a></div>`).join("");
+  box.innerHTML = picks.map(g => `<div class="pick"><span class="pick-icon" aria-hidden="true">${esc(g.emoji || "🎮")}</span><div><strong>${esc(g.title)}</strong><span>${qualityText(g)} · ${esc(g.genre || "Mini Game")}</span></div><a href="${gameUrl(g)}" data-game-link="${esc(g.id)}" aria-label="Play ${esc(g.title)}">Play</a></div>`).join("");
   attachGameLinks(box);
 }
 function renderCatalog() {
   const featured = games[0];
   const pool = games.filter(g => g.id !== featured.id && (activeFilter === "all" || broadGenre(g.genre) === activeFilter));
   const grid = document.getElementById("game-grid");
-  grid.innerHTML = pool.length ? pool.map(cardHtml).join("") : '<div class="empty">這個分類還沒有遊戲，工廠正在準備。</div>';
-  document.getElementById("catalog-count").textContent = activeFilter === "all" ? `主打 1 款＋清單 ${pool.length} 款` : `找到 ${pool.length} 款`;
+  grid.innerHTML = pool.length ? pool.map(cardHtml).join("") : '<div class="empty">No games in this category yet. The factory is preparing more.</div>';
+  document.getElementById("catalog-count").textContent = activeFilter === "all" ? `1 Featured + ${pool.length} Games` : `Found ${pool.length} games`;
   attachImageFallback(grid); attachGameLinks(grid);
 }
 function renderRecent() {
@@ -315,13 +315,13 @@ function showApp() {
 }
 
 if (!rawGames) {
-  appStatus.innerHTML = '<div><strong>遊戲清單暫時載入失敗。</strong><br><span>重新整理頁面再試一次。</span></div>';
+  appStatus.innerHTML = '<div><strong>Failed to load games list.</strong><br><span>Please refresh the page and try again.</span></div>';
   appStatus.setAttribute("aria-busy", "false");
 } else if (!games.length) {
-  appStatus.innerHTML = '<div><strong>工廠正在準備第一款遊戲。</strong><br><span>晚點再回來看看。</span></div>';
+  appStatus.innerHTML = '<div><strong>The factory is preparing the first game.</strong><br><span>Please check back later.</span></div>';
   appStatus.setAttribute("aria-busy", "false");
 } else {
-  stats.innerHTML = `目前共 <b>${games.length}</b> 款 · 最新出廠 <b>${esc(games[0].date)}</b>`;
+  stats.innerHTML = `Total <b>${games.length}</b> games · Latest release <b>${esc(games[0].date)}</b>`;
   renderFeatured(games[0]); renderPicks(games[0]); renderCatalog(); renderRecent(); showApp();
 }
 
@@ -342,17 +342,17 @@ const rateov = document.getElementById("rateov");
 let rateGid = null, rateVal = 0;
 function openRate(gid, title) {
   rateGid = gid; rateVal = getMyRate(gid) || 0;
-  document.getElementById("ratetitle").textContent = "評分《" + title + "》";
+  document.getElementById("ratetitle").textContent = "Rate '" + title + "'";
   document.getElementById("ratenote").value = "";
   document.getElementById("ratemsg").textContent = "";
   const fb = ((games.find(x => x.id === gid) || {}).feedback || []).slice().reverse();
-  document.getElementById("ratefb").innerHTML = fb.length ? '<div class="fbtitle">最近回饋與工廠回覆</div>' + fb.map(f => `<div class="fbitem"><div class="fbnote">「${esc(f.note)}」</div><div class="fbreply">工廠：${esc(f.reply)}</div></div>`).join("") : "";
+  document.getElementById("ratefb").innerHTML = fb.length ? '<div class="fbtitle">Recent Feedback & Factory Replies</div>' + fb.map(f => `<div class="fbitem"><div class="fbnote">"${esc(f.note)}"</div><div class="fbreply">Factory: ${esc(f.reply)}</div></div>`).join("") : "";
   drawStars(); rateov.classList.add("show");
 }
 function drawStars() {
   const box = document.getElementById("stars"); box.innerHTML = "";
   for (let i = 1; i <= 10; i++) {
-    const button = document.createElement("button"); button.type = "button"; button.textContent = i; button.setAttribute("aria-label", i + " 分");
+    const button = document.createElement("button"); button.type = "button"; button.textContent = i; button.setAttribute("aria-label", i + " stars");
     if (i <= rateVal) button.classList.add("on");
     button.addEventListener("click", () => { rateVal = i; drawStars(); }); box.appendChild(button);
   }
@@ -361,14 +361,14 @@ document.getElementById("ratecancel").addEventListener("click", () => rateov.cla
 rateov.addEventListener("click", event => { if (event.target === rateov) rateov.classList.remove("show"); });
 document.getElementById("ratesend").addEventListener("click", () => {
   const msg = document.getElementById("ratemsg");
-  if (!rateVal) { msg.textContent = "先選 1～10 分再送出"; return; }
+  if (!rateVal) { msg.textContent = "Please select a score from 1 to 10 first."; return; }
   const url = window.SC_ANALYTICS_URL || "";
   if (url) {
     let did = "anon"; try { did = localStorage.getItem("sc_did") || "anon"; } catch (e) {}
     try { navigator.sendBeacon(url, JSON.stringify({ev:"rate",game:rateGid,val:rateVal,note:document.getElementById("ratenote").value.slice(0,200),did,days:0,mob:/Mobi|Android/i.test(navigator.userAgent)?1:0})); } catch (e) {}
   }
   try { localStorage.setItem("sc_myrate_" + rateGid, rateVal); } catch (e) {}
-  msg.textContent = "已送出，謝謝回饋！";
+  msg.textContent = "Submitted, thank you for your feedback!";
   setTimeout(() => rateov.classList.remove("show"), 900);
 });
 
@@ -377,7 +377,7 @@ document.getElementById("logbtn").addEventListener("click", () => {
   const rows = [];
   for (const g of games) for (const c of (g.changelog || [])) rows.push({emoji:g.emoji || "🎮",title:g.title,date:c.date,summary:c.summary});
   rows.sort((a,b) => b.date.localeCompare(a.date));
-  document.getElementById("loglist").innerHTML = rows.length ? rows.map(r => `<div class="logitem"><div class="logmeta">${esc(r.emoji)} <b>${esc(r.title)}</b> · ${esc(r.date)}</div><div class="logsum">${esc(r.summary)}</div></div>`).join("") : '<div class="logempty">還沒有更新記錄。</div>';
+  document.getElementById("loglist").innerHTML = rows.length ? rows.map(r => `<div class="logitem"><div class="logmeta">${esc(r.emoji)} <b>${esc(r.title)}</b> · ${esc(r.date)}</div><div class="logsum">${esc(r.summary)}</div></div>`).join("") : '<div class="logempty">No changelog records yet.</div>';
   logov.classList.add("show");
 });
 document.getElementById("logclose").addEventListener("click", () => logov.classList.remove("show"));
